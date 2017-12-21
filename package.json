@@ -1,0 +1,14 @@
+{
+  "name": "nn",
+  "version": "1.0.0",
+  "description": "Neural Network Trainer",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "Joshua White",
+  "license": "ISC",
+  "dependencies": {
+    "synaptic": "^1.1.4"
+  }
+}
