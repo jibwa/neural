@@ -18,12 +18,18 @@ export default class XORTrainer {
     });
   }
 
-  train(iterations) {
+  train(iterations, reportCallback) {
     const { trainingSet, network } = this;
     for (let i = 0; i < iterations; i += 1) {
       trainingSet.forEach(([input, output]) => {
         network.activate(input);
+        if (reportCallback) {
+          reportCallback();
+        }
         network.propagate(output);
+        if (reportCallback) {
+          reportCallback();
+        }
       });
     }
   }
