@@ -2,21 +2,21 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 
-const OutVis = ({ input, weight }, iterator) => (
+const OutVis = ({ z, w }, iterator) => (
   <td key={`out${iterator}`}>
-    {input}/w:{weight}
+    w:{w}
   </td>
 );
 OutVis.propTypes = {
-  input: PropTypes.number.isRequired,
-  weight: PropTypes.number.isRequired
+  z: PropTypes.number.isRequired,
+  w: PropTypes.number.isRequired
 };
 
-const Neuron = ({ input, outs, sum }) => (
+const Neuron = ({ z, outs, s }) => (
   <table>
     <tr>
       <td>
-        {input}/s:{sum}
+        i:{z}   s:{s}
       </td>
     </tr>
     <tr>
@@ -26,9 +26,9 @@ const Neuron = ({ input, outs, sum }) => (
   </table>
 );
 Neuron.propTypes = {
-  input: PropTypes.number.isRequired,
+  z: PropTypes.number.isRequired,
   outs: PropTypes.arrayOf(PropTypes.shape).isRequired,
-  sum: PropTypes.number.isRequired
+  s: PropTypes.number.isRequired
 };
 
 const Layer = ({ neurons }) => (

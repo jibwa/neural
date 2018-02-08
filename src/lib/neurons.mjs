@@ -1,118 +1,127 @@
-const logistic = (x, derivate) => {
+const sigmoid = (x) => {
   const fx = 1 / (1 + Math.exp(-x));
-  if (!derivate) {
-    return fx;
-  }
-  return fx * (1 - fx);
+  return fx;
 };
+const deriveSigmoid = fx => fx * (1 - fx);
 
-
-let neurons = 0;
-let connections = 0;
+let numNeurons = 0;
+let numConnections = 0;
 
 class JNeuron {
   static uid() {
-    neurons += 1;
-    return neurons;
+    numNeurons += 1;
+    return numNeurons;
   }
   static rand() {
-    return (Math.random() * 0.2) - 0.1;
+    return (Math.random() - 0.5);
   }
-  constructor(jsonData = {}) {
-    const {
-      NID, input, sum, outs
-    } = jsonData;
+  constructor() {
     Object.assign(this, {
-      NID: NID || JNeuron.uid(),
-      outs: outs || [],
+      NID: JNeuron.uid(),
+      outs: [],
       ins: [], // TODO WITH JSONDATA
-      input: input || 0,
-      sum: sum || 0
+      z: 0,
+      s: 0
     });
-  }
-
-  activate() {
-    const { input } = this;
-    this.outs.forEach((connection) => {
-      // eslint-disable-next-line no-param-reassign
-      connection.input = input * connection.weight;
-      return connection.input;
-    });
-    return input;
-  }
-
-  calculateInput() {
-    this.sum = this.ins.reduce((acc, { input }) => acc + input, 0);
-    return logistic(this.sum);
   }
 
   project(to) {
-    connections += 1;
-    const CID = connections;
+    numConnections += 1;
+    const CID = numConnections;
     const { outs } = this;
     const connection = {
       to,
       CID,
       from: this,
-      weight: JNeuron.rand()
+      w: JNeuron.rand(),
+      errorSum: 0
     };
     outs.push(connection);
     to.ins.push(connection);
     return connection;
   }
 
+  activate() {
+    this.s = this.ins.reduce((acc, { w, from: { z } }) =>
+      acc + (z * w), 0);
+    this.z = sigmoid(this.s);
+    this.dz = deriveSigmoid(this.z);
+    return this.z;
+  }
+
+  propagateSignal() {
+    const weightAcc = this.outs.reduce((acc, { to, w }) => acc + (to.errorSignal * w), 0);
+    this.errorSignal = this.z * (1 - this.z) * weightAcc;
+    return this.errorSignal;
+  }
+
+  weighSumConnections() {
+    const { outs, z } = this;
+    outs.forEach((connection) => {
+      // console.log({CID: connection.CID, z, toSignal: connection.to.errorSignal});
+      connection.errorSum += (z * connection.to.errorSignal);
+    });
+  }
+
   toJSON() {
     return {
       NID: this.NID,
-      input: this.input,
-      sum: this.sum,
-      outs: this.outs.map(({ to: { NID }, weight }) =>
-        ({ NID, weight }))
+      z: this.z,
+      s: this.s,
+      bias: this.z === 1,
+      outs: this.outs.map(({
+        CID,
+        to: { NID },
+        w,
+        errorSum
+      }) => ({
+        NID,
+        w,
+        CID,
+        errorSum
+      })),
+      ins: this.ins.map(({
+        CID,
+        from: { NID },
+        w,
+        errorSum
+      }) => ({
+        NID,
+        w,
+        CID,
+        errorSum
+      }))
     };
+  }
+}
+
+export class JBiasNeuron extends JNeuron {
+  // do nothing for now
+  activate() {
+    // this is redundant but fulfills a lint rule
+    this.z = 1;
+    return this.z;
+  }
+  constructor() {
+    super();
+    this.z = 1;
   }
 }
 
 export class JInputNeuron extends JNeuron {
   activate(input) {
-    this.input = input - 0.5;
-    return super.activate();
+    this.z = input;
   }
 }
 
 export class JOutputNeuron extends JNeuron {
-  activate() {
-    this.input = super.calculateInput();
-    return this.input;
-  }
-
-  propagate(target, learningRate) {
-    const errorMargin = target - this.input;
-    const logDerivativeSum = logistic(this.sum, true);
-    const deltaOutputSum = errorMargin * logDerivativeSum;
-    this.ins.forEach((connection) => {
-      const deltaWeight = (deltaOutputSum / connection.from.input) * learningRate;
-      // eslint-disable-next-line no-param-reassign
-      connection.from.deltaHiddenSum =
-        (deltaOutputSum / connection.weight) * logistic(connection.from.sum);
-      // eslint-disable-next-line no-param-reassign
-      connection.weight += (deltaWeight);
-    });
+  propagateSignal(target) {
+    const { z } = this;
+    this.errorSignal = z - target;
+    return this.errorSignal;
   }
 }
 
 export class JHiddenNeuron extends JNeuron {
-  activate() {
-    this.input = super.calculateInput();
-    super.activate();
-    return this.input;
-  }
-
-  propagate(learningRate) {
-    this.sum += this.deltaHiddenSum;
-    this.ins.forEach((connection) => {
-      const deltaWeight = (this.deltaHiddenSum / connection.from.input) * learningRate;
-      // eslint-disable-next-line no-param-reassign
-      connection.weight += deltaWeight;
-    });
-  }
+  // http://briandolhansky.com/blog/2013/9/27/artificial-neural-networks-backpropagation-part-4
 }

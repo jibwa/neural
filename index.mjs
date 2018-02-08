@@ -10,7 +10,6 @@ import TrainingMonitor from './src/TrainingMonitor.mjs';
 const trainer = new XORTrainer();
 const { network, trainingSet } = trainer;
 
-// trainer.train(5000);
 const app = express();
 if (process.version !== 'v9.3.0') {
   console.log(`This application is written for node v9.3.0, you are running: ${process.version}`);
@@ -25,10 +24,16 @@ app.engine('jsx', erv.createEngine());
 app.use('/style', expressLess('./less', { debug: true }));
 
 const renderIndex = (req, res) => {
+  console.log(network);
   res.render('index', { network, trainingSet });
 };
 
 app.get('/', (req, res) => res.json(network.toJSON()));
+app.get('/train/:iterations', (req, res) => {
+  const iterations = parseInt(req.params.iterations, 10);
+  trainer.train(iterations);
+  res.json(network.toJSON(trainer.trainingSet));
+});
 app.get('/visualize', renderIndex);
 app.get('/visualize/:iterations', (req, res) => {
   const iterations = parseInt(req.params.iterations, 10);

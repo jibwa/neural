@@ -1,10 +1,16 @@
-import { JInputNeuron, JHiddenNeuron, JOutputNeuron } from './neurons.mjs';
+import { JInputNeuron, JHiddenNeuron, JOutputNeuron, JBiasNeuron } from './neurons.mjs';
 import { toJSON } from '../helpers.mjs';
 
 class JLayer {
-  constructor() {
+  constructor(size, NeuronClass, createBias) {
     // TODO JSON DATA
     this.connectedTo = [];
+    let bias;
+    if (createBias) {
+      bias = new JBiasNeuron();
+    }
+    const neurons = Array(size).fill().map(() => new NeuronClass());
+    this.neurons = createBias ? [bias, ...neurons] : neurons;
   }
 
   activate() {
@@ -15,9 +21,17 @@ class JLayer {
   project(to) {
     this.connectedTo.push(to);
 
-    this.neurons.forEach(fromNeuron =>
-      to.neurons.forEach(toNeuron =>
-        fromNeuron.project(toNeuron)));
+    this.neurons.forEach((fromNeuron) => {
+      to.neurons.forEach((toNeuron) => {
+        if (!(toNeuron instanceof JBiasNeuron)) {
+          fromNeuron.project(toNeuron);
+        }
+      });
+    });
+  }
+  weighSumConnections() {
+    return this.neurons.map(neuron =>
+      neuron.weighSumConnections());
   }
   toJSON() {
     return { neurons: this.neurons.map(toJSON) };
@@ -25,46 +39,42 @@ class JLayer {
 }
 
 export class JOutputLayer extends JLayer {
-  constructor(size = 0, jsonData) {
-    super(jsonData);
-    this.neurons = Array(size).fill().map(() => new JOutputNeuron());
+  constructor(size = 0) {
+    super(size, JOutputNeuron, false);
   }
 
-  propagate(target, learningRate) {
+  propagateSignal(target) {
     if (this.neurons.length !== target.length) {
       throw new Error('TARGET size and LAYER size must be the same to propagate!');
     }
-    this.neurons.forEach((neuron, index) =>
-      neuron.propagate(target[index], learningRate));
+    return this.neurons.map((neuron, index) =>
+      neuron.propagateSignal(target[index]));
   }
 }
 
 export class JHiddenLayer extends JLayer {
-  constructor(size = 0, jsonData) {
-    super(jsonData);
-    this.neurons = Array(size).fill().map(() => new JHiddenNeuron());
+  constructor(size = 0) {
+    super(size, JHiddenNeuron, true);
   }
 
-  propagate(learningRate) {
-    this.neurons.forEach(neuron => neuron.propagate(learningRate));
+  propagateSignal() {
+    return this.neurons.map(neuron => neuron.propagateSignal());
   }
 }
 
 export class JInputLayer extends JLayer {
-  constructor(size = 0, jsonData) {
-    super(jsonData);
-    if (jsonData) {
-      this.neurons = jsonData.neurons.map(data => new JInputNeuron(data));
-    } else {
-      this.neurons = Array(size).fill().map(() => new JInputNeuron());
-    }
+  constructor(size = 0) {
+    super(size, JInputNeuron, true);
   }
 
   activate(inputs) {
-    if (inputs.length !== this.neurons.length) {
+    const { neurons } = this;
+    const inputNeurons = neurons.filter(neuron => neuron instanceof JInputNeuron);
+    if (inputs.length !== inputNeurons.length) {
       throw new Error(`Input size and layer size must be equal to activate  I:${inputs.length}  N:${this.neurons.length}`);
     }
-    return this.neurons.map((neuron, index) =>
+    // activate bias
+    inputNeurons.forEach((neuron, index) =>
       neuron.activate(inputs[index]));
   }
 }

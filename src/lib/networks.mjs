@@ -1,26 +1,17 @@
 import { JInputLayer, JOutputLayer, JHiddenLayer } from './layers.mjs';
 
 export class JNetwork {
-  constructor(layerDef, jsonData) {
-    let input;
-    let hidden;
-    let output;
+  constructor(layerDef) {
     const { learningRate } = layerDef;
+    const input = new JInputLayer(layerDef.input);
+    const hidden = layerDef.hidden.map(num => new JHiddenLayer(num));
+    const output = new JOutputLayer(layerDef.output);
+    const all = [...hidden, output];
 
-    if (jsonData) {
-      input = new JInputLayer(null, jsonData.input);
-      hidden = jsonData.hidden.map(layer => new JHiddenLayer(null, layer));
-      output = new JOutputLayer(null, jsonData.output);
-    } else {
-      input = new JInputLayer(layerDef.input);
-      hidden = layerDef.hidden.map(num => new JHiddenLayer(num));
-      output = new JOutputLayer(layerDef.output);
-      const all = [...hidden, output];
-      all.reduce((curr, next) => {
-        curr.project(next);
-        return next;
-      }, input);
-    }
+    all.reduce((curr, next) => {
+      curr.project(next);
+      return next;
+    }, input);
     Object.assign(this, {
       layers: { input, hidden, output },
       learningRate
@@ -30,19 +21,56 @@ export class JNetwork {
   activate(inputs) {
     const { input, hidden, output } = this.layers;
     input.activate(inputs);
-    [...hidden].forEach(layer => layer.activate());
+    hidden.map(layer => layer.activate());
     return output.activate();
   }
 
-  propagate(target) {
-    const { layers: { output, hidden }, learningRate } = this;
-    output.propagate(target, learningRate);
-    hidden.forEach(layer => layer.propagate(learningRate));
+  propagateSignal(target) {
+    const { layers: { output, hidden } } = this;
+    return [output, ...hidden.reverse()].map(layer => layer.propagateSignal(target));
   }
-  toJSON() {
+  weightSumConnections() {
+    const { layers: { input, hidden } } = this;
+    return [input, ...hidden].map(layer => layer.weighSumConnections());
+  }
+  // We are going to start a new training set or group
+  clearConnectionSums() {
+    // eslint-disable-next-line no-return-assign
+    this.getAllNeurons().forEach(neuron =>
+      neuron.errorSum = 0);
+  }
+
+  updateWeights() {
+    this.getAllConnections().forEach((connection) => {
+      connection.w -= (0.33 * connection.errorSum);
+      connection.errorSum = 0;
+    });
+  }
+
+  getAllNeurons() {
+    const allNeurons = [];
+    this.getFlatLayers().forEach(layer =>
+      allNeurons.push(...layer.neurons));
+    return allNeurons;
+  }
+
+  getAllConnections() {
+    const connections = [];
+    this.getAllNeurons().forEach(neuron =>
+      connections.push(...neuron.ins));
+    return connections;
+  }
+
+  getFlatLayers() {
     const { input, hidden, output } = this.layers;
+    return [input, ...hidden, output];
+  }
+
+  // inputs is optinally training set inputs to add to json
+  toJSON(trainingSet = []) {
     return {
-      layers: [input, ...hidden, output].map(layer => layer.toJSON())
+      inputOutput: trainingSet.map(([input, output]) => [input, this.activate(input), output]),
+      layers: this.getFlatLayers().map(layer => layer.toJSON())
     };
   }
 }

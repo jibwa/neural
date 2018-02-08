@@ -1,11 +1,11 @@
 import { JNetwork } from './lib/networks.mjs';
 
 export default class XORTrainer {
-  constructor(learningRate = 0.005, jsonData) {
+  constructor(learningRate = 0.05, jsonData) {
     Object.assign(this, {
       network: jsonData ? new JNetwork(null, jsonData) : new JNetwork({
         input: 2,
-        hidden: [3],
+        hidden: [300],
         output: 1,
         learningRate
       }),
@@ -21,16 +21,16 @@ export default class XORTrainer {
   train(iterations, reportCallback) {
     const { trainingSet, network } = this;
     for (let i = 0; i < iterations; i += 1) {
+      network.clearConnectionSums();
       trainingSet.forEach(([input, output]) => {
         network.activate(input);
-        if (reportCallback) {
-          reportCallback();
-        }
-        network.propagate(output);
-        if (reportCallback) {
-          reportCallback();
-        }
+        network.propagateSignal(output);
+        network.weightSumConnections();
       });
+      network.updateWeights(trainingSet.length);
+    }
+    if (reportCallback) {
+      reportCallback();
     }
   }
 }
