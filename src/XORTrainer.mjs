@@ -1,8 +1,7 @@
 import { JNetwork } from './lib/networks.mjs';
-import shuffle from 'shuffle-array';
 
 export default class XORTrainer {
-  constructor(learningRate = .05) {
+  constructor(learningRate = 0.05) {
     Object.assign(this, {
       network: new JNetwork({
         input: 2,
@@ -14,14 +13,13 @@ export default class XORTrainer {
         [[0, 0], [0]],
         [[0, 1], [1]],
         [[1, 0], [1]],
-        [[1, 1], [0]],
+        [[1, 1], [0]]
       ]
     });
   }
 
   train(iterations, reportCallback) {
     const { trainingSet, network, learningRate } = this;
-    const i = 1;
     /* let bigSet = [];
     const shuffleArray = arr => arr.sort(() => Math.random() - 0.5);
     Array(1).fill().forEach( () => {

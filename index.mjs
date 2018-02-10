@@ -7,7 +7,7 @@ import TrainingMonitor from './src/TrainingMonitor.mjs';
 // let data = JSON.stringify(input, true);
 // fs.writeFileSync('input.json', data);
 
-const trainer = new XORTrainer(.5);
+const trainer = new XORTrainer();
 const { network, trainingSet } = trainer;
 
 const app = express();

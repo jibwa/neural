@@ -5,7 +5,7 @@ export class JNetwork {
     const { learningRate } = layerDef;
     const input = new JInputLayer(layerDef.input);
     const lastHidden = layerDef.hidden.length - 1;
-    const hidden = layerDef.hidden.map((num, index) => new JHiddenLayer(num, index === lastHidden ));
+    const hidden = layerDef.hidden.map((num, index) => new JHiddenLayer(num, index === lastHidden));
     const output = new JOutputLayer(layerDef.output);
     const all = [...hidden, output];
 

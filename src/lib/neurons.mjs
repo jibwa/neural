@@ -100,13 +100,14 @@ class JNeuron {
 }
 
 export class JBiasNeuron extends JNeuron {
-constructor(lastHidden) {
+  constructor(lastHidden) {
     super();
-    this.activationFunction = sigmoid;
     if (lastHidden) {
       this.deriveFunction = deriveSigmoid;
+      this.activationFunction = sigmoid;
     } else {
       this.deriveFunction = deriveRectifier;
+      this.activationFunction = rectifier;
     }
     this.z = 1;
   }
@@ -143,13 +144,12 @@ export class JOutputNeuron extends JNeuron {
 export class JHiddenNeuron extends JNeuron {
   constructor(lastHidden) {
     super();
-    this.activationFunction = sigmoid;
     if (lastHidden) {
       this.deriveFunction = deriveSigmoid;
+      this.activationFunction = sigmoid;
     } else {
       this.deriveFunction = deriveRectifier;
+      this.activationFunction = rectifier;
     }
-    //this.activateFunction = rectifier;
   }
-  // http://briandolhansky.com/blog/2013/9/27/artificial-neural-networks-backpropagation-part-4
 }
