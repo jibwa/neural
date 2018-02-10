@@ -2,14 +2,14 @@ import { JInputNeuron, JHiddenNeuron, JOutputNeuron, JBiasNeuron } from './neuro
 import { toJSON } from '../helpers.mjs';
 
 class JLayer {
-  constructor(size, NeuronClass, createBias) {
+  constructor(size, NeuronClass, createBias, hiddenLayerIndex) {
     // TODO JSON DATA
     this.connectedTo = [];
     let bias;
     if (createBias) {
       bias = new JBiasNeuron();
     }
-    const neurons = Array(size).fill().map(() => new NeuronClass());
+    const neurons = Array(size).fill().map(() => new NeuronClass(hiddenLayerIndex));
     this.neurons = createBias ? [bias, ...neurons] : neurons;
   }
 
@@ -53,8 +53,8 @@ export class JOutputLayer extends JLayer {
 }
 
 export class JHiddenLayer extends JLayer {
-  constructor(size = 0) {
-    super(size, JHiddenNeuron, true);
+  constructor(size = 0, lastHidden) {
+    super(size, JHiddenNeuron, true, lastHidden);
   }
 
   propagateSignal() {

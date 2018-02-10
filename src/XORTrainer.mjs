@@ -1,11 +1,12 @@
 import { JNetwork } from './lib/networks.mjs';
+import shuffle from 'shuffle-array';
 
 export default class XORTrainer {
-  constructor(learningRate = 0.05, jsonData) {
+  constructor(learningRate = .05) {
     Object.assign(this, {
-      network: jsonData ? new JNetwork(null, jsonData) : new JNetwork({
+      network: new JNetwork({
         input: 2,
-        hidden: [300],
+        hidden: [2],
         output: 1,
         learningRate
       }),
@@ -13,13 +14,21 @@ export default class XORTrainer {
         [[0, 0], [0]],
         [[0, 1], [1]],
         [[1, 0], [1]],
-        [[1, 1], [0]]
+        [[1, 1], [0]],
       ]
     });
   }
 
   train(iterations, reportCallback) {
-    const { trainingSet, network } = this;
+    const { trainingSet, network, learningRate } = this;
+    const i = 1;
+    /* let bigSet = [];
+    const shuffleArray = arr => arr.sort(() => Math.random() - 0.5);
+    Array(1).fill().forEach( () => {
+     bigSet = bigSet.concat(shuffleArray(trainingSet.slice()))
+    });
+    */
+
     for (let i = 0; i < iterations; i += 1) {
       network.clearConnectionSums();
       trainingSet.forEach(([input, output]) => {
@@ -27,7 +36,7 @@ export default class XORTrainer {
         network.propagateSignal(output);
         network.weightSumConnections();
       });
-      network.updateWeights(trainingSet.length);
+      network.updateWeights(learningRate);
     }
     if (reportCallback) {
       reportCallback();

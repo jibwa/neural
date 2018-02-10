@@ -4,7 +4,8 @@ export class JNetwork {
   constructor(layerDef) {
     const { learningRate } = layerDef;
     const input = new JInputLayer(layerDef.input);
-    const hidden = layerDef.hidden.map(num => new JHiddenLayer(num));
+    const lastHidden = layerDef.hidden.length - 1;
+    const hidden = layerDef.hidden.map((num, index) => new JHiddenLayer(num, index === lastHidden ));
     const output = new JOutputLayer(layerDef.output);
     const all = [...hidden, output];
 
@@ -42,7 +43,7 @@ export class JNetwork {
 
   updateWeights() {
     this.getAllConnections().forEach((connection) => {
-      connection.w -= (0.33 * connection.errorSum);
+      connection.w -= (this.learningRate * 0.33 * connection.errorSum);
       connection.errorSum = 0;
     });
   }

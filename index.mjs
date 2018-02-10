@@ -7,7 +7,7 @@ import TrainingMonitor from './src/TrainingMonitor.mjs';
 // let data = JSON.stringify(input, true);
 // fs.writeFileSync('input.json', data);
 
-const trainer = new XORTrainer();
+const trainer = new XORTrainer(.5);
 const { network, trainingSet } = trainer;
 
 const app = express();
@@ -20,11 +20,9 @@ if (process.version !== 'v9.3.0') {
 app.set('views', './views');
 app.set('view engine', 'jsx');
 app.engine('jsx', erv.createEngine());
-
 app.use('/style', expressLess('./less', { debug: true }));
 
 const renderIndex = (req, res) => {
-  console.log(network);
   res.render('index', { network, trainingSet });
 };
 
@@ -32,7 +30,7 @@ app.get('/', (req, res) => res.json(network.toJSON()));
 app.get('/train/:iterations', (req, res) => {
   const iterations = parseInt(req.params.iterations, 10);
   trainer.train(iterations);
-  res.json(network.toJSON(trainer.trainingSet));
+  res.json(network.toJSON(trainingSet));
 });
 app.get('/visualize', renderIndex);
 app.get('/visualize/:iterations', (req, res) => {

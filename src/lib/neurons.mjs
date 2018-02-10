@@ -1,8 +1,12 @@
+const rectifier = x => Math.log(1 + Math.exp(x));
+const deriveRectifier = x => 1 / (1 + Math.exp(-x));
+
 const sigmoid = (x) => {
   const fx = 1 / (1 + Math.exp(-x));
   return fx;
 };
 const deriveSigmoid = fx => fx * (1 - fx);
+
 
 let numNeurons = 0;
 let numConnections = 0;
@@ -44,14 +48,13 @@ class JNeuron {
   activate() {
     this.s = this.ins.reduce((acc, { w, from: { z } }) =>
       acc + (z * w), 0);
-    this.z = sigmoid(this.s);
-    this.dz = deriveSigmoid(this.z);
+    this.z = this.activationFunction(this.s);
     return this.z;
   }
 
   propagateSignal() {
     const weightAcc = this.outs.reduce((acc, { to, w }) => acc + (to.errorSignal * w), 0);
-    this.errorSignal = this.z * (1 - this.z) * weightAcc;
+    this.errorSignal = this.deriveFunction(this.z) * weightAcc;
     return this.errorSignal;
   }
 
@@ -68,6 +71,7 @@ class JNeuron {
       NID: this.NID,
       z: this.z,
       s: this.s,
+      errorSignal: this.errorSignal,
       bias: this.z === 1,
       outs: this.outs.map(({
         CID,
@@ -96,32 +100,56 @@ class JNeuron {
 }
 
 export class JBiasNeuron extends JNeuron {
-  // do nothing for now
+constructor(lastHidden) {
+    super();
+    this.activationFunction = sigmoid;
+    if (lastHidden) {
+      this.deriveFunction = deriveSigmoid;
+    } else {
+      this.deriveFunction = deriveRectifier;
+    }
+    this.z = 1;
+  }
+
   activate() {
-    // this is redundant but fulfills a lint rule
     this.z = 1;
     return this.z;
-  }
-  constructor() {
-    super();
-    this.z = 1;
   }
 }
 
 export class JInputNeuron extends JNeuron {
+  constructor() {
+    super();
+    this.deriveFunction = deriveRectifier;
+  }
   activate(input) {
     this.z = input;
   }
 }
 
 export class JOutputNeuron extends JNeuron {
-  propagateSignal(target) {
+  constructor() {
+    super();
+    this.activationFunction = sigmoid;
+  }
+
+  propagateSignal(y) {
     const { z } = this;
-    this.errorSignal = z - target;
+    this.errorSignal = z - y;
     return this.errorSignal;
   }
 }
 
 export class JHiddenNeuron extends JNeuron {
+  constructor(lastHidden) {
+    super();
+    this.activationFunction = sigmoid;
+    if (lastHidden) {
+      this.deriveFunction = deriveSigmoid;
+    } else {
+      this.deriveFunction = deriveRectifier;
+    }
+    //this.activateFunction = rectifier;
+  }
   // http://briandolhansky.com/blog/2013/9/27/artificial-neural-networks-backpropagation-part-4
 }
