@@ -2,20 +2,18 @@ import { JInputLayer, JOutputLayer, JHiddenLayer } from './layers.mjs';
 
 export class JNetwork {
   constructor(layerDef) {
-    const { learningRate } = layerDef;
     const input = new JInputLayer(layerDef.input);
-    const lastHidden = layerDef.hidden.length - 1;
-    const hidden = layerDef.hidden.map((num, index) => new JHiddenLayer(num, index === lastHidden));
+    const hidden = layerDef.hidden.map(layer => new JHiddenLayer(layer));
     const output = new JOutputLayer(layerDef.output);
-    const all = [...hidden, output];
 
-    all.reduce((curr, next) => {
+    [...hidden, output].reduce((curr, next) => {
       curr.project(next);
       return next;
     }, input);
+
     Object.assign(this, {
       layers: { input, hidden, output },
-      learningRate
+      learningRate: layerDef.learningRate
     });
   }
 

@@ -7,7 +7,7 @@ import TrainingMonitor from './src/TrainingMonitor.mjs';
 // let data = JSON.stringify(input, true);
 // fs.writeFileSync('input.json', data);
 
-const trainer = new XORTrainer();
+let trainer = new XORTrainer();
 const { network, trainingSet } = trainer;
 
 const app = express();
@@ -49,6 +49,10 @@ app.get('/monitor', (req, res) => renderMonitor(req, res, 0));
 app.get('/monitor/:iterations', (req, res) => {
   const iterations = parseInt(req.params.iterations, 10);
   renderMonitor(req, res, iterations);
+});
+
+app.get('/reset', (req) => {
+  trainer = new XORTrainer();
 });
 
 app.listen(4000, () => {

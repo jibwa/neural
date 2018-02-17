@@ -1,13 +1,3 @@
-const rectifier = x => Math.log(1 + Math.exp(x));
-const deriveRectifier = x => 1 / (1 + Math.exp(-x));
-
-const sigmoid = (x) => {
-  const fx = 1 / (1 + Math.exp(-x));
-  return fx;
-};
-const deriveSigmoid = fx => fx * (1 - fx);
-
-
 let numNeurons = 0;
 let numConnections = 0;
 
@@ -19,8 +9,9 @@ class JNeuron {
   static rand() {
     return (Math.random() - 0.5);
   }
-  constructor() {
+  constructor({ activationFunction }) {
     Object.assign(this, {
+      activationFunction,
       NID: JNeuron.uid(),
       outs: [],
       ins: [], // TODO WITH JSONDATA
@@ -53,15 +44,16 @@ class JNeuron {
   }
 
   propagateSignal() {
+    // todo, find a better way to do this
+    // const { activationFunction } = this.outs[0].to;
     const weightAcc = this.outs.reduce((acc, { to, w }) => acc + (to.errorSignal * w), 0);
-    this.errorSignal = this.deriveFunction(this.z) * weightAcc;
+    this.errorSignal = this.activationFunction(this.z, true) * weightAcc;
     return this.errorSignal;
   }
 
   weighSumConnections() {
     const { outs, z } = this;
     outs.forEach((connection) => {
-      // console.log({CID: connection.CID, z, toSignal: connection.to.errorSignal});
       connection.errorSum += (z * connection.to.errorSignal);
     });
   }
@@ -100,18 +92,6 @@ class JNeuron {
 }
 
 export class JBiasNeuron extends JNeuron {
-  constructor(lastHidden) {
-    super();
-    if (lastHidden) {
-      this.deriveFunction = deriveSigmoid;
-      this.activationFunction = sigmoid;
-    } else {
-      this.deriveFunction = deriveRectifier;
-      this.activationFunction = rectifier;
-    }
-    this.z = 1;
-  }
-
   activate() {
     this.z = 1;
     return this.z;
@@ -119,21 +99,12 @@ export class JBiasNeuron extends JNeuron {
 }
 
 export class JInputNeuron extends JNeuron {
-  constructor() {
-    super();
-    this.deriveFunction = deriveRectifier;
-  }
   activate(input) {
     this.z = input;
   }
 }
 
 export class JOutputNeuron extends JNeuron {
-  constructor() {
-    super();
-    this.activationFunction = sigmoid;
-  }
-
   propagateSignal(y) {
     const { z } = this;
     this.errorSignal = z - y;
@@ -142,14 +113,5 @@ export class JOutputNeuron extends JNeuron {
 }
 
 export class JHiddenNeuron extends JNeuron {
-  constructor(lastHidden) {
-    super();
-    if (lastHidden) {
-      this.deriveFunction = deriveSigmoid;
-      this.activationFunction = sigmoid;
-    } else {
-      this.deriveFunction = deriveRectifier;
-      this.activationFunction = rectifier;
-    }
-  }
+
 }

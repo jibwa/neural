@@ -1,19 +1,29 @@
 import { JNetwork } from './lib/networks.mjs';
 
 export default class XORTrainer {
-  constructor(learningRate = 0.05) {
+  constructor(learningRate = 0.5) {
     Object.assign(this, {
       network: new JNetwork({
-        input: 2,
-        hidden: [2],
-        output: 1,
+        input: { numNeurons: 5 },
+        hidden: [{ numNeurons: 2 }],
+        output: { numNeurons: 1, skipBias: true },
         learningRate
       }),
       trainingSet: [
-        [[0, 0], [0]],
-        [[0, 1], [1]],
-        [[1, 0], [1]],
-        [[1, 1], [0]]
+        [[1,0,0,0,1],[.25]],
+        [[1,0,0,1,0],[.25]],
+        [[1,0,1,0,0],[.25]],
+        [[1,1,0,0,0],[.25]],
+        [[1,0,0,1,1],[.5]],
+        [[1,0,1,0,1],[.5]],
+        [[1,0,1,1,0],[.5]],
+        [[1,1,0,1,0],[.5]],
+        [[1,1,1,0,0],[.5]],
+        [[1,1,0,0,1],[.5]],
+        [[1,0,1,1,1],[.75]],
+        [[1,1,0,1,1],[.75]],
+        [[1,1,1,0,1],[.75]],
+        [[1,1,1,1,0],[.75]]
       ]
     });
   }

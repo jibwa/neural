@@ -1,16 +1,26 @@
 import { JInputNeuron, JHiddenNeuron, JOutputNeuron, JBiasNeuron } from './neurons.mjs';
 import { toJSON } from '../helpers.mjs';
+import activationFunctions from './activationFunctions.mjs';
 
 class JLayer {
-  constructor(size, NeuronClass, createBias, hiddenLayerIndex) {
-    // TODO JSON DATA
+  constructor(layerDef, NeuronClass) {
+    const {
+      numNeurons,
+      activationFunction = activationFunctions.sigmoid,
+      skipBias = false
+    } = layerDef;
+
     this.connectedTo = [];
+
     let bias;
-    if (createBias) {
-      bias = new JBiasNeuron();
+    if (!skipBias) {
+      bias = new JBiasNeuron({ activationFunction });
     }
-    const neurons = Array(size).fill().map(() => new NeuronClass(hiddenLayerIndex));
-    this.neurons = createBias ? [bias, ...neurons] : neurons;
+    const neurons = Array(numNeurons).fill().map(() => new NeuronClass({ activationFunction }));
+    Object.assign(this, {
+      neurons: bias ? [bias, ...neurons] : neurons,
+      connectedTo: []
+    });
   }
 
   activate() {
@@ -39,13 +49,13 @@ class JLayer {
 }
 
 export class JOutputLayer extends JLayer {
-  constructor(size = 0) {
-    super(size, JOutputNeuron, false);
+  constructor(layerDef) {
+    super(layerDef, JOutputNeuron);
   }
 
   propagateSignal(target) {
     if (this.neurons.length !== target.length) {
-      throw new Error('TARGET size and LAYER size must be the same to propagate!');
+      throw new Error('TARGET size and LAYER size must be the same to propagate. Usually this means there is an undepected bios node');
     }
     return this.neurons.map((neuron, index) =>
       neuron.propagateSignal(target[index]));
@@ -53,8 +63,8 @@ export class JOutputLayer extends JLayer {
 }
 
 export class JHiddenLayer extends JLayer {
-  constructor(size = 0, lastHidden) {
-    super(size, JHiddenNeuron, true, lastHidden);
+  constructor(layerDef) {
+    super(layerDef, JHiddenNeuron);
   }
 
   propagateSignal() {
@@ -63,8 +73,8 @@ export class JHiddenLayer extends JLayer {
 }
 
 export class JInputLayer extends JLayer {
-  constructor(size = 0) {
-    super(size, JInputNeuron, true);
+  constructor(layerDef) {
+    super(layerDef, JInputNeuron);
   }
 
   activate(inputs) {
