@@ -11,5 +11,5 @@ const sigmoid = (x, derive) => {
   return 1 / (1 + Math.exp(-x));
 };
 
-export default { rectifier, sigmoid };
+export { rectifier, sigmoid };
 

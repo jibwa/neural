@@ -1,12 +1,13 @@
 import { JInputNeuron, JHiddenNeuron, JOutputNeuron, JBiasNeuron } from './neurons.mjs';
 import { toJSON } from '../helpers.mjs';
-import activationFunctions from './activationFunctions.mjs';
+import { sigmoid } from './activationFunctions.mjs';
 
 class JLayer {
   constructor(layerDef, NeuronClass) {
     const {
       numNeurons,
-      activationFunction = activationFunctions.sigmoid,
+      activationFunction = sigmoid,
+      weightMax = 1.0,
       skipBias = false
     } = layerDef;
 
@@ -19,7 +20,8 @@ class JLayer {
     const neurons = Array(numNeurons).fill().map(() => new NeuronClass({ activationFunction }));
     Object.assign(this, {
       neurons: bias ? [bias, ...neurons] : neurons,
-      connectedTo: []
+      connectedTo: [],
+      layerDef
     });
   }
 
@@ -29,12 +31,13 @@ class JLayer {
 
   // set up the neuron relationships
   project(to) {
+    const {layerDef: { weightMax = 1 } } = this;
     this.connectedTo.push(to);
 
     this.neurons.forEach((fromNeuron) => {
       to.neurons.forEach((toNeuron) => {
         if (!(toNeuron instanceof JBiasNeuron)) {
-          fromNeuron.project(toNeuron);
+          fromNeuron.project(toNeuron, weightMax);
         }
       });
     });

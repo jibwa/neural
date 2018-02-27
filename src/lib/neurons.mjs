@@ -1,3 +1,4 @@
+import { sigmoid } from './activationFunctions.mjs';
 let numNeurons = 0;
 let numConnections = 0;
 
@@ -20,7 +21,7 @@ class JNeuron {
     });
   }
 
-  project(to) {
+  project(to, weightMax) {
     numConnections += 1;
     const CID = numConnections;
     const { outs } = this;
@@ -28,7 +29,7 @@ class JNeuron {
       to,
       CID,
       from: this,
-      w: JNeuron.rand(),
+      w: JNeuron.rand() * weightMax,
       errorSum: 0
     };
     outs.push(connection);
