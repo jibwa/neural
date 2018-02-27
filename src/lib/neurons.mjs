@@ -47,7 +47,8 @@ class JNeuron {
   propagateSignal() {
     // todo, find a better way to do this
     // const { activationFunction } = this.outs[0].to;
-    const weightAcc = this.outs.reduce((acc, { to, w }) => acc + (to.errorSignal * w), 0);
+    const { z } = this;
+    const weightAcc = this.outs.reduce((acc, { to, w }) => acc + (to.errorSignal * z), 0);
     this.errorSignal = this.activationFunction(this.z, true) * weightAcc;
     return this.errorSignal;
   }
@@ -55,7 +56,7 @@ class JNeuron {
   weighSumConnections() {
     const { outs, z } = this;
     outs.forEach((connection) => {
-      connection.errorSum += (z * connection.to.errorSignal);
+      connection.errorSum += this.s * connection.to.errorSignal;
     });
   }
 

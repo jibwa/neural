@@ -36,12 +36,14 @@ export class JNetwork {
   clearConnectionSums() {
     // eslint-disable-next-line no-return-assign
     this.getAllNeurons().forEach(neuron =>
-      neuron.errorSum = 0);
+      neuron.outs.forEach(connection => {
+        connection.errorSum = 0;
+      }));
   }
 
-  updateWeights() {
+  updateWeights(batchSize) {
     this.getAllConnections().forEach((connection) => {
-      connection.w -= (this.learningRate * 0.33 * connection.errorSum);
+      connection.w -= ((this.learningRate / batchSize ) * connection.errorSum);
       connection.errorSum = 0;
     });
   }
