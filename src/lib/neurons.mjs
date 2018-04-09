@@ -1,4 +1,3 @@
-import { sigmoid } from './activationFunctions.mjs';
 let numNeurons = 0;
 let numConnections = 0;
 
@@ -8,7 +7,7 @@ class JNeuron {
     return numNeurons;
   }
   static rand() {
-    return (Math.random() - 0.5);
+    return Math.random();
   }
   constructor({ activationFunction }) {
     Object.assign(this, {
@@ -38,25 +37,33 @@ class JNeuron {
   }
 
   activate() {
-    this.s = this.ins.reduce((acc, { w, from: { z } }) =>
-      acc + (z * w), 0);
-    this.z = this.activationFunction(this.s);
+    this.s = this.ins.reduce((acc, { CID, w, from: { NID, z } }) => {
+      return acc + (z * w);
+    }, 0.0);
+    this.z = this.activationFunction.f(this.s);
     return this.z;
   }
 
-  propagateSignal() {
-    // todo, find a better way to do this
-    // const { activationFunction } = this.outs[0].to;
-    const { z } = this;
-    const weightAcc = this.outs.reduce((acc, { to, w }) => acc + (to.errorSignal * z), 0);
-    this.errorSignal = this.activationFunction(this.z, true) * weightAcc;
-    return this.errorSignal;
+  sumConnectionErrors() {
+    return this.outs.reduce((acc, { to, w }) => {
+      return acc + (to.errorSignal * w)
+    } , 0.0);
   }
 
-  weighSumConnections() {
-    const { outs, z } = this;
-    outs.forEach((connection) => {
-      connection.errorSum += this.s * connection.to.errorSignal;
+  calculateSignal() {
+    this.errorSignal = this.activationFunction.d(this.z) * this.sumConnectionErrors();
+  }
+
+  updateConnectionSums() {
+    const { z } = this;
+    this.outs.forEach(connection => {
+      connection.errorSum += z * connection.to.errorSignal;
+    })
+  }
+
+  getConnectionSums(result) {
+    return this.outs.forEach(connection => {
+      result[connection.CID] = connection.errorSum;
     });
   }
 
@@ -66,7 +73,7 @@ class JNeuron {
       z: this.z,
       s: this.s,
       errorSignal: this.errorSignal,
-      bias: this.z === 1,
+      neuronType: this.constructor.name,
       outs: this.outs.map(({
         CID,
         to: { NID },
@@ -91,27 +98,55 @@ class JNeuron {
       }))
     };
   }
+  getWeightArray() {
+    return this.outs.map(out => out.w);
+  }
+  restoreWeights(weights) {
+    this.outs.map((out, i) => out.w = weights[i]);
+  }
 }
 
 export class JBiasNeuron extends JNeuron {
   activate() {
+    this.s = this.z;
     this.z = 1;
     return this.z;
   }
+  calculateSignal() {
+    // Bias doesn't consider the derivitave of its 'value'
+    this.errorSignal = this.sumConnectionErrors();
+  }
+
 }
 
 export class JInputNeuron extends JNeuron {
   activate(input) {
     this.z = input;
+    this.s = input;
   }
 }
 
 export class JOutputNeuron extends JNeuron {
-  propagateSignal(y) {
+  calculateLoss(y) {
     const { z } = this;
-    this.errorSignal = z - y;
+    // SQUARED ERROR
+    // this.loss = 0.5 * Math.pow(y - z, 2);
+    //this.loss = Math.abs(y- Math.round(z));
+    //this.loss = z * Math.log(y) + (1-y) * Math.log(1-y);
+    this.loss = y * Math.log(z) + (1-y) * Math.log(1-z);
+    return this.loss;
+  }
+  calculateSignal(y) {
+    const { z, NID } = this;
+    // the reason we pass z to activationfunction derivative is because
+    // it is less costly than calculating z again with the sums
+    const errorSignal = ( y - z )
+    //const errorSignal = (y - z) * this.activationFunction.d(z);
+    this.errorSignal = errorSignal;
     return this.errorSignal;
   }
+
+
 }
 
 export class JHiddenNeuron extends JNeuron {

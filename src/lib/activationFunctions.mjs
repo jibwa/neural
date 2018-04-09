@@ -1,15 +1,20 @@
-const rectifier = (x, derive) => {
-  if (derive) {
-    return 1 / (1 + Math.exp(-x));
-  }
-  return Math.log(1 + Math.exp(x));
+const sigmoid = { // aka logistic
+  f: sum => 1.0 / (1.0 + Math.exp(-sum)),
+  d: f => f * (1.0 - f)
+}
+const softplus = { // aka rectrifier
+  f: sum => Math.log(1.0 + Math.exp(sum)),
+  d: f => 1.0 / (1.0 + Math.exp(-f))
 };
-const sigmoid = (x, derive) => {
-  if (derive) {
-    return x * (1 - x);
-  }
-  return 1 / (1 + Math.exp(-x));
-};
+const relu = {
+  f: sum => sum > 0 ? sum : 0,
+  d: f => f > 0 ? 1.0 : 0
+}
 
-export { rectifier, sigmoid };
+const logits = {
+  f: sum => sum,
+  d: f => 1
+}
+
+export { softplus, sigmoid, relu, logits };
 

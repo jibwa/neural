@@ -12,8 +12,7 @@ export class JNetwork {
     }, input);
 
     Object.assign(this, {
-      layers: { input, hidden, output },
-      learningRate: layerDef.learningRate
+      layers: { input, hidden, output }
     });
   }
 
@@ -24,13 +23,21 @@ export class JNetwork {
     return output.activate();
   }
 
-  propagateSignal(target) {
-    const { layers: { output, hidden } } = this;
-    return [output, ...hidden.reverse()].map(layer => layer.propagateSignal(target));
+  calculateLoss(target) {
+    const { output } = this.layers;
+    return output.calculateLoss(target);
   }
-  weightSumConnections() {
+
+  calculateSignal(ys) {
+    const { layers: { hidden, input, output } } = this;
+    output.calculateSignal(ys);
+    return [...hidden.slice().reverse(), input].forEach(layer => layer.calculateSignal());
+  }
+
+  updateConnectionSums() {
+    // TODO REMOVE THIS FUNCTION NOT USED
     const { layers: { input, hidden } } = this;
-    return [input, ...hidden].map(layer => layer.weighSumConnections());
+    return [input, ...hidden].map(layer => layer.updateConnectionSums());
   }
   // We are going to start a new training set or group
   clearConnectionSums() {
@@ -41,9 +48,16 @@ export class JNetwork {
       }));
   }
 
-  updateWeights(batchSize) {
+  getConnectionSums() {
+    const result = {};
+    this.getFlatLayers().forEach(layer => layer.getConnectionSums(result));
+    return result;;
+  }
+
+  updateWeights(learningRate, batchSize) {
+    // TODO - BIASES USE A DIFFERENT FORMULA
     this.getAllConnections().forEach((connection) => {
-      connection.w -= ((this.learningRate / batchSize ) * connection.errorSum);
+      connection.w += ((1 / batchSize) * connection.errorSum);
       connection.errorSum = 0;
     });
   }
@@ -73,5 +87,11 @@ export class JNetwork {
       inputOutput: trainingSet.map(([input, output]) => [input, this.activate(input), output]),
       layers: this.getFlatLayers().map(layer => layer.toJSON())
     };
+  }
+  getWeightArrays() {
+    return this.getFlatLayers().map(layer => layer.getWeightArrays());
+  }
+  restoreWeights(weights) {
+    this.getFlatLayers.forEach((layer, i) => layer.restoreWeights(weights[i]));
   }
 }
