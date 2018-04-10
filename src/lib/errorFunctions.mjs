@@ -1,0 +1,4 @@
+const squareReduceMean = {
+
+}
+export { squareReduceMean };

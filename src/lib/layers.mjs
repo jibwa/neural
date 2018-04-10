@@ -8,16 +8,18 @@ class JLayer {
       numNeurons,
       activationFunction = sigmoid,
       weightMax = 1.0,
-      skipBias = false
+      skipBias = false,
+      wBound,
+      dropout
     } = layerDef;
-
+    this.dropout = dropout;
     this.connectedTo = [];
 
     let bias;
     if (!skipBias) {
-      bias = new BiasClass({ activationFunction });
+      bias = new BiasClass({ activationFunction, wBound });
     }
-    const neurons = Array(numNeurons).fill().map(() => new NeuronClass({ activationFunction }));
+    const neurons = Array(numNeurons).fill().map(() => new NeuronClass({ activationFunction, wBound }));
     Object.assign(this, {
       neurons: bias ? [bias, ...neurons] : neurons,
       connectedTo: [],
@@ -71,15 +73,6 @@ export class JOutputLayer extends JLayer {
     super(layerDef, JOutputNeuron);
   }
 
-  calculateLoss(target) {
-    if (this.neurons.length !== target.length) {
-      throw new Error(`TARGET size and LAYER size must be the same to propagate. Usually this means there is an unexpected bios node. Target size: ${target.length}, Layer size: ${this.neurons.length}`);
-    }
-    const loss = this.neurons.reduce((acc, neuron, index) => {
-      return acc + neuron.calculateLoss(target[index]);
-    }, 0)
-    return loss;
-  }
   calculateSignal(target) {
     if (this.neurons.length !== target.length) {
       throw new Error(`TARGET size and LAYER size must be the same to propagate. Usually this means there is an unexpected bios node. Target size: ${target.length}, Layer size: ${this.neurons.length}`);
@@ -100,17 +93,21 @@ export class JInputLayer extends JLayer {
     super(layerDef, JInputNeuron);
   }
 
-  activate(inputs) {
-    const { neurons } = this;
+  activate(inputs, testing) {
+    const { neurons, layerDef: { dropout = 1 } } = this;
     const inputNeurons = neurons.filter(neuron => neuron instanceof JInputNeuron);
     const biasNeurons = neurons.filter(neuron => neuron instanceof JBiasNeuron);
     if (inputs.length !== inputNeurons.length) {
       throw new Error(`Input size and layer size must be equal to activate  I:${inputs.length}  N:${this.neurons.length}`);
     }
     // activate bias
+    let dropoutToUse = 1;
+    if (testing === true) {
+      dropoutToUse = dropout;
+    }
     biasNeurons.forEach(neuron => neuron.activate());
     inputNeurons.forEach((neuron, index) => {
-      neuron.activate(inputs[index])
+      neuron.activate(inputs[index], dropoutToUse)
     });
   }
 }

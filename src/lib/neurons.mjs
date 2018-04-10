@@ -9,9 +9,10 @@ class JNeuron {
   static rand() {
     return Math.random();
   }
-  constructor({ activationFunction }) {
+  constructor({ activationFunction, wBound }) {
     Object.assign(this, {
       activationFunction,
+      wBound,
       NID: JNeuron.uid(),
       outs: [],
       ins: [], // TODO WITH JSONDATA
@@ -37,28 +38,78 @@ class JNeuron {
   }
 
   activate() {
-    this.s = this.ins.reduce((acc, { CID, w, from: { NID, z } }) => {
+    if (this.dropped) {
+      return;
+    }
+    const s = this.ins.reduce((acc, { CID, w, dropped, from: { NID, z } }) => {
+      if (dropped) {
+        return acc;
+      }
       return acc + (z * w);
     }, 0.0);
-    this.z = this.activationFunction.f(this.s);
+    this.z = this.activationFunction.f(s);
     return this.z;
   }
 
   sumConnectionErrors() {
-    return this.outs.reduce((acc, { to, w }) => {
+    if (this.dropped) {
+      return;
+    }
+    return this.outs.reduce((acc, { to, w, dropped }) => {
+      if (dropped) {
+        return acc;
+      }
       return acc + (to.errorSignal * w)
     } , 0.0);
   }
 
   calculateSignal() {
+    if (this.dropped) {
+      return;
+    }
     this.errorSignal = this.activationFunction.d(this.z) * this.sumConnectionErrors();
   }
 
   updateConnectionSums() {
-    const { z } = this;
+    const { z, dropped } = this;
+    if (dropped) {
+      return;
+    }
     this.outs.forEach(connection => {
+      if (connection.dropped) {
+        return;
+      }
       connection.errorSum += z * connection.to.errorSignal;
     })
+  }
+  wBoundWeight(connection) {
+    const { wBound } = this;
+    if (wBound) {
+      if (connection.w > wBound) {
+        connection.w = wBound;
+      }
+      if (connection.w < -wBound) {
+        connection.w = -wBound;
+      }
+    }
+  }
+  updateWeights(learningRate, batchSize, regularize) {
+    if (this.dropped) {
+      return;
+    }
+    this.outs.forEach(connection => {
+      if (connection.dropped) {
+        connection.errorSum = 0;
+        return;
+      }
+      let regToAdd = 0.0;
+      if (!regularize) {
+        regToAdd = (regularize / parseFloat(batchSize)) * connection.w;
+      }
+      connection.w += learningRate * (((1 / batchSize) * connection.errorSum) - regToAdd);
+      this.wBoundWeight(connection);
+      connection.errorSum = 0;
+    });
   }
 
   getConnectionSums(result) {
@@ -67,11 +118,25 @@ class JNeuron {
     });
   }
 
+  drop() {
+    this.dropped = true;
+    [...this.ins, ...this.outs].forEach(connection => {
+      connection.dropped = true;
+    });
+  }
+  restoreDrop() {
+    if (this.dropped === true) {
+      this.dropped = false;
+      [...this.ins, ...this.outs].forEach(connection => {
+        connection.dropped = false;
+      });
+    }
+  }
+
   toJSON() {
     return {
       NID: this.NID,
       z: this.z,
-      s: this.s,
       errorSignal: this.errorSignal,
       neuronType: this.constructor.name,
       outs: this.outs.map(({
@@ -108,35 +173,46 @@ class JNeuron {
 
 export class JBiasNeuron extends JNeuron {
   activate() {
-    this.s = this.z;
+    if (this.dropped) {
+      return;
+    }
     this.z = 1;
     return this.z;
   }
   calculateSignal() {
+    if (this.dropped) {
+      return;
+    }
     // Bias doesn't consider the derivitave of its 'value'
     this.errorSignal = this.sumConnectionErrors();
   }
-
+  updateWeights(learningRate, batchSize) {
+    if (this.dropped) {
+      return;
+    }
+    this.outs.forEach(connection => {
+      connection.w += learningRate * ((1 / batchSize) * connection.errorSum);
+      this.wBoundWeight(connection);
+      connection.errorSum = 0;
+    });
+  }
+  // DONT dropout bias
+  drop() {}
+  restoreDrop() {}
 }
 
 export class JInputNeuron extends JNeuron {
-  activate(input) {
-    this.z = input;
-    this.s = input;
+  activate(input, dropout) {
+    if (this.dropped) {
+      return;
+    }
+    this.z = input * dropout;
   }
 }
 
 export class JOutputNeuron extends JNeuron {
-  calculateLoss(y) {
-    const { z } = this;
-    // SQUARED ERROR
-    // this.loss = 0.5 * Math.pow(y - z, 2);
-    //this.loss = Math.abs(y- Math.round(z));
-    //this.loss = z * Math.log(y) + (1-y) * Math.log(1-y);
-    this.loss = y * Math.log(z) + (1-y) * Math.log(1-z);
-    return this.loss;
-  }
   calculateSignal(y) {
+    // no dropout here necause you cant drop output neurons
     const { z, NID } = this;
     // the reason we pass z to activationfunction derivative is because
     // it is less costly than calculating z again with the sums
@@ -145,8 +221,6 @@ export class JOutputNeuron extends JNeuron {
     this.errorSignal = errorSignal;
     return this.errorSignal;
   }
-
-
 }
 
 export class JHiddenNeuron extends JNeuron {

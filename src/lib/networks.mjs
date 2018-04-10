@@ -16,16 +16,38 @@ export class JNetwork {
     });
   }
 
-  activate(inputs) {
-    const { input, hidden, output } = this.layers;
-    input.activate(inputs);
-    hidden.map(layer => layer.activate());
-    return output.activate();
+  dropout() {
+    const { input, hidden } = this.layers;
+    [input, ...hidden].forEach(layer => {
+      const { dropout } = layer.layerDef;
+      if (!dropout) {
+        return;
+      }
+      layer.neurons.forEach(neuron => {
+        if (Math.random() > dropout) {
+          neuron.drop()
+        }
+      }, [])
+    });
+  }
+  restoreDropout() {
+    const { input, hidden } = this.layers;
+    [input, ...hidden].forEach(layer => {
+      const { dropout } = layer.layerDef;
+      if (!dropout) {
+        return;
+      }
+      layer.neurons.forEach(neuron => {
+        neuron.restoreDrop();
+      })
+    });
   }
 
-  calculateLoss(target) {
-    const { output } = this.layers;
-    return output.calculateLoss(target);
+  activate(inputs, testing) {
+    const { input, hidden, output } = this.layers;
+    input.activate(inputs, true);
+    hidden.map(layer => layer.activate());
+    return output.activate();
   }
 
   calculateSignal(ys) {
@@ -54,12 +76,13 @@ export class JNetwork {
     return result;;
   }
 
-  updateWeights(learningRate, batchSize) {
+  updateWeights(learningRate, batchSize, regularize) {
     // TODO - BIASES USE A DIFFERENT FORMULA
-    this.getAllConnections().forEach((connection) => {
-      connection.w += ((1 / batchSize) * connection.errorSum);
-      connection.errorSum = 0;
-    });
+    this.getAllNeurons().forEach(neuron => neuron.updateWeights(learningRate, batchSize, regularize));
+    //this.getAllConnections().forEach((connection) => {
+    //  connection.w += ((1 / batchSize) * connection.errorSum);
+    //  connection.errorSum = 0;
+    //});
   }
 
   getAllNeurons() {

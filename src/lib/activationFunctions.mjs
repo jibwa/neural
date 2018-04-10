@@ -7,8 +7,8 @@ const softplus = { // aka rectrifier
   d: f => 1.0 / (1.0 + Math.exp(-f))
 };
 const relu = {
-  f: sum => sum > 0 ? sum : 0,
-  d: f => f > 0 ? 1.0 : 0
+  f: sum => sum > 0 ? sum : .001,
+  d: f => f > 0 ? .0999 : .001
 }
 
 const logits = {
