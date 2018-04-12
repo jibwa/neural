@@ -1,10 +1,17 @@
 import { JInputLayer, JOutputLayer, JHiddenLayer } from './layers.mjs';
+import { ConnectionManager } from './connectionManager.mjs';
 
 export class JNetwork {
   constructor(layerDef) {
-    const input = new JInputLayer(layerDef.input);
-    const hidden = layerDef.hidden.map(layer => new JHiddenLayer(layer));
-    const output = new JOutputLayer(layerDef.output);
+    const cm = new ConnectionManager();
+    const input = new JInputLayer(layerDef.input, cm, 0);
+    let layerInt = 1;
+    const hidden = layerDef.hidden.map(layer => {
+      let hl = new JHiddenLayer(layer, cm, layerInt)
+      layerInt += 1
+      return hl;
+    });
+    const output = new JOutputLayer(layerDef.output, cm, layerInt);
 
     [...hidden, output].reduce((curr, next) => {
       curr.project(next);
@@ -12,41 +19,30 @@ export class JNetwork {
     }, input);
 
     Object.assign(this, {
+      cm,
       layers: { input, hidden, output }
     });
   }
 
   dropout() {
     const { input, hidden } = this.layers;
-    [input, ...hidden].forEach(layer => {
-      const { dropout } = layer.layerDef;
-      if (!dropout) {
-        return;
-      }
-      layer.neurons.forEach(neuron => {
-        if (Math.random() > dropout) {
-          neuron.drop()
-        }
-      }, [])
-    });
+    [input, ...hidden].forEach(layer => layer.drop())
   }
   restoreDropout() {
     const { input, hidden } = this.layers;
-    [input, ...hidden].forEach(layer => {
-      const { dropout } = layer.layerDef;
-      if (!dropout) {
-        return;
-      }
-      layer.neurons.forEach(neuron => {
-        neuron.restoreDrop();
-      })
-    });
+    [input, ...hidden].forEach(layer => layer.restoreDrop())
+  }
+  scaleDropoutPForPrediction(invert) {
+    const { cm, layers: { input, hidden } } = this;
+    [input, ...hidden].forEach(({layerInt, layerDef: { dropout } }) =>
+      cm.scaleWeightsForDropout(layerInt, dropout, invert) );
+
   }
 
   activate(inputs, testing) {
     const { input, hidden, output } = this.layers;
-    input.activate(inputs, true);
-    hidden.map(layer => layer.activate());
+    input.activate(inputs, testing);
+    hidden.map(layer => layer.activate(testing));
     return output.activate();
   }
 
@@ -64,16 +60,10 @@ export class JNetwork {
   // We are going to start a new training set or group
   clearConnectionSums() {
     // eslint-disable-next-line no-return-assign
-    this.getAllNeurons().forEach(neuron =>
-      neuron.outs.forEach(connection => {
-        connection.errorSum = 0;
-      }));
+    this.cm.allConnections().forEach(connection => connection.errorSum = 0);
   }
-
   getConnectionSums() {
-    const result = {};
-    this.getFlatLayers().forEach(layer => layer.getConnectionSums(result));
-    return result;;
+    return this.cm.allConnections().map(({ CID, errorSum }) => [CID, errorSum]);
   }
 
   updateWeights(learningRate, batchSize, regularize) {
@@ -87,16 +77,14 @@ export class JNetwork {
 
   getAllNeurons() {
     const allNeurons = [];
-    this.getFlatLayers().forEach(layer =>
-      allNeurons.push(...layer.neurons));
+    this.getFlatLayers().forEach(layer => {
+      allNeurons.push(...layer.neurons)
+    });
     return allNeurons;
   }
 
   getAllConnections() {
-    const connections = [];
-    this.getAllNeurons().forEach(neuron =>
-      connections.push(...neuron.ins));
-    return connections;
+    return this.cm.allConnections();
   }
 
   getFlatLayers() {
@@ -112,7 +100,7 @@ export class JNetwork {
     };
   }
   getWeightArrays() {
-    return this.getFlatLayers().map(layer => layer.getWeightArrays());
+    return this.cm.layeredConnectionWeights();
   }
   restoreWeights(weights) {
     this.getFlatLayers.forEach((layer, i) => layer.restoreWeights(weights[i]));

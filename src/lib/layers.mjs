@@ -3,43 +3,45 @@ import { toJSON } from '../helpers.mjs';
 import { sigmoid } from './activationFunctions.mjs';
 
 class JLayer {
-  constructor(layerDef, NeuronClass, BiasClass = JBiasNeuron) {
+  constructor(layerDef, NeuronClass, cm, layerInt) {
     const {
       numNeurons,
       activationFunction = sigmoid,
       weightMax = 1.0,
       skipBias = false,
+      dropout = 1.0,
       wBound,
-      dropout
     } = layerDef;
-    this.dropout = dropout;
     this.connectedTo = [];
 
     let bias;
     if (!skipBias) {
-      bias = new BiasClass({ activationFunction, wBound });
+      bias = new JBiasNeuron({ activationFunction, wBound , cm });
     }
-    const neurons = Array(numNeurons).fill().map(() => new NeuronClass({ activationFunction, wBound }));
+    const neurons = Array(numNeurons).fill().map(() => new NeuronClass({ activationFunction, cm, wBound }));
     Object.assign(this, {
       neurons: bias ? [bias, ...neurons] : neurons,
       connectedTo: [],
-      layerDef
+      dropouts: [],
+      layerDef,
+      layerInt,
+      cm
     });
   }
 
-  activate() {
-    return this.neurons.map(neuron => neuron.activate());
+  activate(testing) {
+    return this.neurons.map(neuron => neuron.activate(testing));
   }
 
   // set up the neuron relationships
   project(to) {
-    const {layerDef: { weightMax } } = this;
+    const {layerInt, layerDef: { weightMax } } = this;
     this.connectedTo.push(to);
 
     this.neurons.forEach((fromNeuron) => {
       to.neurons.forEach((toNeuron) => {
         if (!(toNeuron instanceof JBiasNeuron)) {
-          fromNeuron.project(toNeuron, weightMax);
+          fromNeuron.project(toNeuron, weightMax, layerInt);
         }
       });
     });
@@ -49,10 +51,6 @@ class JLayer {
   }
   updateConnectionSums() {
     return this.neurons.map(neuron => neuron.updateConnectionSums())
-  }
-  getConnectionSums(result) {
-    this.neurons.forEach(neuron => neuron.getConnectionSums(result));
-    return result;
   }
   toJSON() {
     return {
@@ -66,11 +64,46 @@ class JLayer {
   restoreWeights(weights) {
     return this.neurons.forEach((neuron, i) => neuron.restoreWeights(weights[i]));
   }
+
+  drop(modifyNeurons) {
+    const { layerDef: { dropout }, dropouts, neurons } = this;
+    if (!dropout) {
+      return;
+    }
+    const newNeurons = this.neurons.reduce((acc, neuron) => {
+      if (Math.random() > dropout) {
+        // bias nodes wont let themselves be dropped and report false
+        const dropped = neuron.drop();
+        if (dropped) {
+          dropouts.push(neuron);
+          if (modifyNeurons) {
+            return acc;
+          }
+        }
+      }
+      acc.push(neuron);
+      return acc;
+    }, []);
+    this.neurons = newNeurons;
+  }
+  restoreDrop(modifyNeurons) {
+    const { neurons, layerDef: { dropout }, dropouts } = this;
+    if (!dropout) {
+      return;
+    }
+    this.dropouts.forEach(neuron => {
+      neuron.restoreDrop();
+    })
+    if (modifyNeurons) {
+      neurons.push(...dropouts);
+    }
+    this.dropouts = [];
+  }
 }
 
 export class JOutputLayer extends JLayer {
-  constructor(layerDef) {
-    super(layerDef, JOutputNeuron);
+  constructor(layerDef, cm, layerInt) {
+    super(layerDef, JOutputNeuron, cm);
   }
 
   calculateSignal(target) {
@@ -82,32 +115,37 @@ export class JOutputLayer extends JLayer {
 }
 
 export class JHiddenLayer extends JLayer {
-  constructor(layerDef) {
-    super(layerDef, JHiddenNeuron);
+  constructor(layerDef, cm, layerInt) {
+    super(layerDef, JHiddenNeuron, cm, layerInt);
+  }
+  drop() {
+    super.drop(true);
   }
 
+  restoreDrop() {
+    super.restoreDrop(true)
+  }
 }
 
 export class JInputLayer extends JLayer {
-  constructor(layerDef) {
-    super(layerDef, JInputNeuron);
+  constructor(layerDef, cm, layerInt) {
+    super(layerDef, JInputNeuron, cm, layerInt);
   }
 
   activate(inputs, testing) {
-    const { neurons, layerDef: { dropout = 1 } } = this;
+    const { neurons, layerDef: { dropout } } = this;
     const inputNeurons = neurons.filter(neuron => neuron instanceof JInputNeuron);
     const biasNeurons = neurons.filter(neuron => neuron instanceof JBiasNeuron);
     if (inputs.length !== inputNeurons.length) {
       throw new Error(`Input size and layer size must be equal to activate  I:${inputs.length}  N:${this.neurons.length}`);
     }
-    // activate bias
-    let dropoutToUse = 1;
+    let dropoutP = 1.0;
     if (testing === true) {
-      dropoutToUse = dropout;
+      dropoutP = dropout;
     }
     biasNeurons.forEach(neuron => neuron.activate());
     inputNeurons.forEach((neuron, index) => {
-      neuron.activate(inputs[index], dropoutToUse)
+      neuron.activate(inputs[index] * dropoutP)
     });
   }
 }
