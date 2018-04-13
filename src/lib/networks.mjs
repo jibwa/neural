@@ -62,8 +62,11 @@ export class JNetwork {
     // eslint-disable-next-line no-return-assign
     this.cm.allConnections().forEach(connection => connection.errorSum = 0);
   }
+  getConnections() {
+    return this.cm.allConnections(true);
+  }
   getConnectionSums() {
-    return this.cm.allConnections().map(({ CID, errorSum }) => [CID, errorSum]);
+    return this.cm.allConnections(true).map(({ CID, errorSum }) => [CID, errorSum]);
   }
 
   updateWeights(learningRate, batchSize, regularize) {

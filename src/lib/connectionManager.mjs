@@ -35,8 +35,12 @@ export class ConnectionManager {
     this.numConnections += 1;
   }
 
-  allConnections() {
-    return Object.values(this.conns);
+  allConnections(ordered=false) {
+    const conns = Object.values(this.conns);
+    if (ordered) {
+      conns.sort((a, b) => a < b ? -1 : 1)
+    }
+    return conns;
   }
 
   layeredConnectionWeights(fn) {
