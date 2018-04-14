@@ -20,6 +20,7 @@ export default class Trainer {
   constructor(def) {
     const network = new JNetwork(def.layers);
     Object.assign(this, {
+      stopOrdered: false,
       ...def,
       network,
       info: {
@@ -28,7 +29,8 @@ export default class Trainer {
       examples: {
         testSet: [],
         trainSet: []
-      }
+      },
+      lastCost: 1
     });
   }
 
@@ -38,6 +40,7 @@ export default class Trainer {
       examples,
       trainConfig: {
         trainTestRatio = 1,
+        trainNum,
         randomizeSplit
       }
     } = this;
@@ -50,16 +53,30 @@ export default class Trainer {
       }
       const { trainSet, testSet } = examples;
       let ratio = 1;
-      while (trainTestRatio < ratio) {
-        let testExample;
-        if (randomizeSplit) {
-          const trainIndex = Math.floor(Math.random() * parseFloat(trainSet.length));
-          testExample = trainSet.splice(trainIndex,1)[0];
-        } else {
-          testExample = trainSet.pop();
+      if (trainNum > 0) {
+        while (trainSet.length > trainNum) {
+          let testExample;
+          if (randomizeSplit) {
+            const trainIndex = Math.floor(Math.random() * parseFloat(trainSet.length));
+            testExample = trainSet.splice(trainIndex,1)[0];
+          } else {
+            testExample = trainSet.pop();
+          }
+          testSet.push(testExample);
         }
-        testSet.push(testExample);
-        ratio = parseFloat(trainSet.length) / parseFloat(testSet.length);
+      }
+      else {
+        while (trainTestRatio < ratio) {
+          let testExample;
+          if (randomizeSplit) {
+            const trainIndex = Math.floor(Math.random() * parseFloat(trainSet.length));
+            testExample = trainSet.splice(trainIndex,1)[0];
+          } else {
+            testExample = trainSet.pop();
+          }
+          testSet.push(testExample);
+          ratio = parseFloat(trainSet.length) / parseFloat(testSet.length);
+        }
       }
       // self.hasData = true;
       return true;
@@ -78,15 +95,19 @@ export default class Trainer {
     const {
       network,
       examples: { trainSet },
-      trainConfig: { epsilon = 0.001 }
+      trainConfig: {
+        epsilon = 0.0001,
+        regularize
+      }
     } = this;
+    const connections = network.getConnections();
+
     const calcLoss = () => {
       const zs = predict(network, trainSet);
-      return cost(zs, trainSet);
+      return cost(zs, trainSet, regularize, connections);
     };
     this.runFullStep();
 
-    const connections = network.getConnections();
 
     return connections.map((connection) => {
       connection.w = connection.w + epsilon;
@@ -103,16 +124,23 @@ export default class Trainer {
     });
   }
   quickReport(i) {
-    const { network, examples: { trainSet, testSet } } = this;
+    const {
+      network,
+      examples: { trainSet, testSet },
+      trainConfig: { regularize }
+    } = this;
+    const connections = network.getConnections();
     const r5 = (fl) => parseFloat(fl.toFixed(5));
     const trainPreds = predict(network, trainSet);
-    const trainCost = r5(cost(trainPreds, trainSet));
+    const trainCost = cost(trainPreds, trainSet, regularize, connections);
+    this.deltaCost = this.lastCost - trainCost;
+    this.lastCost = trainCost;
     const trainBool = r5(bool(trainPreds, trainSet));
     if (testSet.length > 0) {
       const testPreds = predict(network, testSet);
-      const testCost = r5(cost(testPreds, testSet))
+      const testCost = cost(testPreds, testSet, regularize, connections);
       const testBool = r5(bool(testPreds, testSet));
-      console.log(`Costs (tr/te): ${trainCost} / ${testCost}   Bool: ${trainBool} / ${testBool}  I: ${i}`);
+      console.log(`Costs (tr/te): ${trainCost} / ${testCost}   Bool: ${trainBool} / ${testBool}  I: ${i}  dCost: ${this.deltaCost}`);
       return testBool;
     } else {
 
@@ -176,11 +204,16 @@ export default class Trainer {
         batchIndex += batchSize;
       }
       i += 1;
-      if (i % 100 === 0) {
+      if (i % 50 === 0) {
         // const reportStart = Date.now();
         const testBool = this.quickReport(i);
-        if (testBool < .22) {
+        if (testBool < .10) {
           i = iterations;
+        }
+        if (!this.stopOrdered && this.deltaCost < 0.0) {
+          i = iterations - 200;
+          this.stopOrdered = true
+          console.log('HERE IT IS');
         }
         // dinfo.reporting = Date.now() - reportStart;
         // console.log(dinfo);

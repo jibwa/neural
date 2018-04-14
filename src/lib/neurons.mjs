@@ -178,6 +178,14 @@ export class JOutputNeuron extends JNeuron {
   }
 }
 
+export class JSoftmaxXENeuron extends JNeuron {
+  calculateSignal(y) {
+    const errorSignal = ( y - this.z )
+    this.errorSignal = errorSignal;
+    return this.errorSignal;
+  }
+}
+
 export class JHiddenNeuron extends JNeuron {
 
 }

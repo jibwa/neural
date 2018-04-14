@@ -1,4 +1,4 @@
-import { JInputLayer, JOutputLayer, JHiddenLayer } from './layers.mjs';
+import { JInputLayer, JOutputLayer, JSoftmaxXEOutputLayer,  JHiddenLayer } from './layers.mjs';
 import { ConnectionManager } from './connectionManager.mjs';
 
 export class JNetwork {
@@ -11,7 +11,9 @@ export class JNetwork {
       layerInt += 1
       return hl;
     });
-    const output = new JOutputLayer(layerDef.output, cm, layerInt);
+    const OutputLayerClass = layerDef.output.softmaxXE === true ?
+      JSoftmaxXEOutputLayer : JOutputLayer;
+    const output = new OutputLayerClass(layerDef.output, cm, layerInt);
 
     [...hidden, output].reduce((curr, next) => {
       curr.project(next);

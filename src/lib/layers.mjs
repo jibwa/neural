@@ -1,6 +1,12 @@
-import { JInputNeuron, JHiddenNeuron, JOutputNeuron, JBiasNeuron } from './neurons.mjs';
+import {
+  JInputNeuron,
+  JHiddenNeuron,
+  JOutputNeuron,
+  JBiasNeuron,
+  JSoftmaxXENeuron
+} from './neurons.mjs';
 import { toJSON } from '../helpers.mjs';
-import { sigmoid } from './activationFunctions.mjs';
+import { sigmoid, softmax } from './activationFunctions.mjs';
 
 class JLayer {
   constructor(layerDef, NeuronClass, cm, layerInt) {
@@ -100,10 +106,9 @@ class JLayer {
     this.dropouts = [];
   }
 }
-
 export class JOutputLayer extends JLayer {
-  constructor(layerDef, cm, layerInt) {
-    super(layerDef, JOutputNeuron, cm);
+  constructor(layerDef, cm, layerInt, NeuronType=JOutputNeuron) {
+    super(layerDef, NeuronType, cm);
   }
 
   calculateSignal(target) {
@@ -112,6 +117,29 @@ export class JOutputLayer extends JLayer {
     }
     return this.neurons.map((neuron, index) => neuron.calculateSignal(target[index]));
   }
+}
+export class JSoftmaxXEOutputLayer extends JOutputLayer {
+  constructor(layerDef, cm, layerInt) {
+    super({
+      ...layerDef,
+      activationFunction: softmax,
+      skipBias: true
+    },
+      cm,
+      layerInt,
+      JSoftmaxXENeuron,
+    );
+  }
+  activate() {
+    const ts = this.neurons.map(n => n.activate());
+    const sum = ts.reduce((acc, t) => acc + t);
+    const zs = this.neurons.map(n => {
+      n.z = n.z / sum
+      return n.z;
+    });
+    return zs;
+  }
+
 }
 
 export class JHiddenLayer extends JLayer {
