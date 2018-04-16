@@ -29,6 +29,8 @@ export default class Trainer {
           level: 1,
           lambda: 0,
         },
+        // for binary and softmax
+        skipOccurances: false,
         ...def.trainConfig
       },
       network,
@@ -39,7 +41,7 @@ export default class Trainer {
         testSet: [],
         trainSet: []
       },
-      lastCost: 1
+      lastCost: 0
     });
   }
 
@@ -48,6 +50,7 @@ export default class Trainer {
       dataFn,
       examples,
       trainConfig: {
+        skipOccurances,
         trainTestRatio = 1,
         trainNum,
         randomizeSplit
@@ -87,7 +90,28 @@ export default class Trainer {
           ratio = parseFloat(trainSet.length) / parseFloat(testSet.length);
         }
       }
-      // self.hasData = true;
+      if (skipOccurances) {
+        const zeros = new Array(trainSet[0][1].length).fill(0);
+        const occurances = trainSet.reduce((acc, [inputs, outputs]) => {
+          const index = outputs.indexOf(1);
+          if (index != -1) {
+            acc[index] += 1;
+          }
+          return acc;
+        }, zeros)
+        if (zeros.length == 1) {
+          // we are in binary classification mode
+          // so se index 0 to be 0 scaler and keep index 1 as 1 scaler
+          occurances.push(trainSet.length - occurances[0]);
+
+        }
+        const min = occurances.reduce((acc, occurance) => occurance < acc ? occurance : acc, trainSet.length)
+        let occuranceSkips = occurances.map(n => min / parseFloat(n));
+        console.log(`Skipping Occurances: ${occurances} => ${occuranceSkips}`);
+        this.occuranceSkips = occuranceSkips;
+
+        // self.hasData = true;
+      }
       return true;
     });
   }
@@ -167,11 +191,13 @@ export default class Trainer {
         testSet
       },
       trainConfig: {
+        skipOccurances,
         learningRate,
         regularize,
         batchSize,
         shuffleAfterEpoch
-      }
+      },
+      occuranceSkips
     } = this;
 
     // TODO REMOVE REMOVE
@@ -193,8 +219,22 @@ export default class Trainer {
       let batchIndex = 0;
       while (batchIndex < trainSet.length) {
         const batchExamples = trainSet.slice(batchIndex, batchSize + batchIndex);
+        let finalBatchSize = 0
         network.dropout();
         batchExamples.forEach(([input, output]) => {
+          // HERE - what if instead of randomly having different batch sizes I randomly filled the slots
+          if (false && skipOccurances) {
+            let skipOdds = 0;
+            if (output.length === 1) {
+              skipOdds = occuranceSkips[output[0]];
+            } else {
+              skipOdds = occuranceSkips[output.indexOf(1)];
+            }
+            if (Math.random() > skipOdds) {
+              return;
+            }
+          }
+          finalBatchSize += 1;
           // const actStart = Date.now();
           network.activate(input);
           // const actEnd = Date.now()
@@ -207,14 +247,14 @@ export default class Trainer {
           info.connectionSums = network.getConnectionSums();
         }
         // const updateStart = Date.now();
-        network.updateWeights(learningRate, batchSize, regularize);
+        network.updateWeights(learningRate, finalBatchSize, regularize);
         network.restoreDropout();
         // dinfo.updating += Date.now() - updateStart;
         // network.clearConnectionSums();
         batchIndex += batchSize;
       }
       i += 1;
-      if (i % 1 === 0) {
+      if (i % 50 === 0) {
         // const reportStart = Date.now();
         const testBool = this.quickReport(i);
         if (testBool < .10) {

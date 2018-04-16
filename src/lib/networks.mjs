@@ -1,4 +1,4 @@
-import { JInputLayer, JOutputLayer, JSoftmaxXEOutputLayer,  JHiddenLayer } from './layers.mjs';
+import { JInputLayer, JOutputLayer, JSoftmaxXEOutputLayer, JSparsemaxLayer, JHiddenLayer } from './layers.mjs';
 import { ConnectionManager } from './connectionManager.mjs';
 
 export class JNetwork {
@@ -11,8 +11,13 @@ export class JNetwork {
       layerInt += 1
       return hl;
     });
-    const OutputLayerClass = layerDef.output.softmaxXE === true ?
-      JSoftmaxXEOutputLayer : JOutputLayer;
+    let OutputLayerClass = JOutputLayer;
+    if (layerDef.output.softmaxXE === true) {
+      OutputLayerClass = JSoftmaxXEOutputLayer;
+    }
+    if (layerDef.output.sparsemax === true) {
+      OutputLayerClass = JSparsemaxLayer;
+    }
     const output = new OutputLayerClass(layerDef.output, cm, layerInt);
 
     [...hidden, output].reduce((curr, next) => {

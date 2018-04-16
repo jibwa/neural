@@ -142,6 +142,45 @@ export class JSoftmaxXEOutputLayer extends JOutputLayer {
 
 }
 
+const cumulativeSum = ([head, ...tail]) =>
+  tail.reduce((acc, x, index) => {
+    acc.push(acc[index] + x);
+    return acc
+  }, [head])
+
+
+export class JSparsemaxLayer extends JOutputLayer {
+  constructor(layerDef, cm, layerInt) {
+    super({
+      ...layerDef,
+      activationFunction: x => x,
+      skipBias: true
+    },
+      cm,
+      layerInt,
+      JSoftmaxXENeuron,
+    );
+  }
+  activate(logits) {
+    //const logits = this.neurons.map(n => n.activate());
+    const sum = logits.reduce((acc, t) => acc + t);
+    const mean = sum / logits.length;
+    const z = logits.map(l => {
+      return l - mean;
+    });
+    // optimize if needed into 1 sort
+    z.sort((a, b) => (a > b) ? -1 : 1);
+
+    const cSum = cumulativeSum(z);
+    const kZ = cSum.reduce((acc, sum, i) =>
+        (1.0 + (parseFloat(i + 1) * z[i])) > sum ? acc + 1 : acc
+    ,0);
+
+  }
+
+}
+
+
 export class JHiddenLayer extends JLayer {
   constructor(layerDef, cm, layerInt) {
     super(layerDef, JHiddenNeuron, cm, layerInt);

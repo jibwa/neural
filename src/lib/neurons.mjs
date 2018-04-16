@@ -62,6 +62,7 @@ class JNeuron {
       connection.errorSum += z * connection.to.errorSignal;
     })
   }
+
   wBoundWeight(connection) {
     const { wBound } = this;
     if (wBound) {
@@ -190,12 +191,7 @@ export class JOutputNeuron extends JNeuron {
   }
 }
 
-export class JSoftmaxXENeuron extends JNeuron {
-  calculateSignal(y) {
-    const errorSignal = ( y - this.z )
-    this.errorSignal = errorSignal;
-    return this.errorSignal;
-  }
+export class JSoftmaxXENeuron extends JOutputNeuron {
 }
 
 export class JHiddenNeuron extends JNeuron {

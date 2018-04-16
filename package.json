@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node --experimental-modules index.mjs",
-    "lint": "node ./node_modules/eslint/bin/eslint.js --ext=mjs,js,jsx src/** index.mjs"
+    "lint": "node ./node_modules/eslint/bin/eslint.js --ext=mjs,js,jsx src/** index.mjs",
+    "node": "node -i --experimental-modules t.mjs"
+
   },
   "author": "Joshua White",
   "license": "ISC",
