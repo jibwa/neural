@@ -2,27 +2,73 @@ const netAverage = (fn, negate) =>
   (predictions, dataSet) => {
     const n = negate ? -1 : 1;
     return n * dataSet.reduce((acc, [input, output], index) =>
-      acc + fn(output[0], predictions[index][0])
+      acc + fn(output, predictions[index])
     , 0.0) / parseFloat(dataSet.length);
   }
 
-const simpleCost = netAverage((y, z) =>
-  y * Math.log(z) + (1-y) * Math.log(1-z), true);
+const simpleCost = netAverage((yArr, zArr) =>{
+  const y = yArr[0];
+  const z = zArr[0];
+  return -y * Math.log(z) - (1-y) * Math.log(1-z);
+});
 
-const cost = (predictions, dataset, regularize, weights) => {
+const cost = (predictions, dataset, { level, lambda }, weights) => {
+
   const preReg = simpleCost(predictions, dataset)
-  if (regularize == 0) {
+  if (!(lambda > 0)) {
     return preReg;
   }
+  const pLen = parseFloat(predictions.length);
+  let weightSqSum;
+  let regC;
+  if (level === 1) {
+    weightSqSum = weights.reduce((acc, { w }) => acc + Math.abs(w), 0);
+    regC = lambda / pLen
+  } else if (level === 2) {
+    weightSqSum = weights.reduce((acc, { w }) => acc + Math.pow(w, 2), 0);
+    regC = lambda / (2.0 * pLen)
+  }
+  return preReg + (regC * weightSqSum);
+/*
   const weightSqSum = weights.reduce((acc, { w }) => acc + w * w, 0);
   const regC = regularize / ( 2 * predictions.length);
   return preReg + (regC * weightSqSum);
+  */
 }
 
+const simpleSoftmaxXECost = netAverage((yArray, zArray) => {
+  const index = yArray.indexOf(1);
+  return -yArray[index] * Math.log(zArray[index]);
+});
+
+const softmaxXECost = (predictions, dataset, { level, lambda }, weights) => {
+  const preReg = simpleSoftmaxXECost(predictions, dataset)
+  // regularization
+  if (lambda === 0) {
+    return preReg;
+  }
+  const pLen = parseFloat(predictions.length);
+  let weightSqSum;
+  let regC;
+  if (level === 1) {
+    weightSqSum = weights.reduce((acc, { w }) => acc + Math.abs(w), 0);
+    regC = lambda / pLen
+  } else if (level === 2) {
+    weightSqSum = weights.reduce((acc, { w }) => acc + Math.pow(w, 2), 0);
+    regC = lambda / (2.0 * pLen)
+  }
+  return preReg + (regC * weightSqSum);
+}
+
+const softmaxBool = netAverage((yArray, zArray) => {
+  const index = yArray.indexOf(1);
+  const indexOfMaxValue = zArray.reduce((iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 0);
+  return index === indexOfMaxValue ? 0 : 1;
+})
 const bool = netAverage((y, z) =>
   Math.abs(y - Math.round(z)));
 
 const meanSquare = netAverage((y, z) =>
   Math.pow(y - z, 2));
 
-export { cost, bool, meanSquare };
+export { cost, bool, meanSquare, softmaxXECost, softmaxBool };

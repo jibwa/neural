@@ -22,6 +22,15 @@ export default class Trainer {
     Object.assign(this, {
       stopOrdered: false,
       ...def,
+      trainConfig: {
+        costFn: cost,
+        boolFn: bool,
+        regularize: {
+          level: 1,
+          lambda: 0,
+        },
+        ...def.trainConfig
+      },
       network,
       info: {
         connectionSums: []
@@ -97,14 +106,15 @@ export default class Trainer {
       examples: { trainSet },
       trainConfig: {
         epsilon = 0.0001,
-        regularize
+        regularize,
+        costFn
       }
     } = this;
     const connections = network.getConnections();
 
     const calcLoss = () => {
       const zs = predict(network, trainSet);
-      return cost(zs, trainSet, regularize, connections);
+      return costFn(zs, trainSet, regularize, connections);
     };
     this.runFullStep();
 
@@ -127,19 +137,19 @@ export default class Trainer {
     const {
       network,
       examples: { trainSet, testSet },
-      trainConfig: { regularize }
+      trainConfig: { regularize, costFn, boolFn }
     } = this;
     const connections = network.getConnections();
     const r5 = (fl) => parseFloat(fl.toFixed(5));
     const trainPreds = predict(network, trainSet);
-    const trainCost = cost(trainPreds, trainSet, regularize, connections);
+    const trainCost = costFn(trainPreds, trainSet, regularize, connections);
     this.deltaCost = this.lastCost - trainCost;
     this.lastCost = trainCost;
-    const trainBool = r5(bool(trainPreds, trainSet));
+    const trainBool = r5(boolFn(trainPreds, trainSet));
     if (testSet.length > 0) {
       const testPreds = predict(network, testSet);
-      const testCost = cost(testPreds, testSet, regularize, connections);
-      const testBool = r5(bool(testPreds, testSet));
+      const testCost = costFn(testPreds, testSet, regularize, connections);
+      const testBool = r5(boolFn(testPreds, testSet));
       console.log(`Costs (tr/te): ${trainCost} / ${testCost}   Bool: ${trainBool} / ${testBool}  I: ${i}  dCost: ${this.deltaCost}`);
       return testBool;
     } else {
@@ -204,14 +214,14 @@ export default class Trainer {
         batchIndex += batchSize;
       }
       i += 1;
-      if (i % 50 === 0) {
+      if (i % 1 === 0) {
         // const reportStart = Date.now();
         const testBool = this.quickReport(i);
         if (testBool < .10) {
           i = iterations;
         }
         if (!this.stopOrdered && this.deltaCost < 0.0) {
-          i = iterations - 200;
+          i = iterations;
           this.stopOrdered = true
           console.log('HERE IT IS');
         }

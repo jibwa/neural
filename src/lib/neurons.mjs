@@ -73,14 +73,26 @@ class JNeuron {
       }
     }
   }
-  updateWeights(learningRate, batchSize, regularize) {
+  updateWeights(learningRate, batchSize, { level, lambda }) {
     const { outs } = this.conns();
+    const pBSize = parseFloat(batchSize);
     outs.forEach(connection => {
-      let regToAdd = 0.0;
-      if (regularize > 0.0) {
-        regToAdd = (regularize / parseFloat(batchSize)) * connection.w;
+      const { errorSum, w } = connection;
+      const d = -learningRate * (1.0 / pBSize) * errorSum
+      if (!(lambda > 0.0)) {
+        // no regularization, simple update
+         connection.w -= d
+      } else {
+        if (level === 1) {
+          const sgn = w < 0 ? -1.0 : 1.0;
+          const reg = ((learningRate * lambda ) / pBSize) * sgn;
+          connection.w = w - reg - d;
+
+        } else if (level === 2) {
+          const reg = 1.0 - (( learningRate * lambda ) / pBSize);
+          connection.w =  reg * w - d;
+        }
       }
-      connection.w += learningRate * (((1 / batchSize) * connection.errorSum) - regToAdd);
       this.wBoundWeight(connection);
       connection.errorSum = 0;
     });
