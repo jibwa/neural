@@ -1,5 +1,5 @@
 import { JNetwork } from './lib/networks.mjs';
-import { cost, bool } from './lib/lossFunctions.mjs';
+import { crossEntropy } from './lib/lossFunctions.mjs';
 import { predict } from './lib/netHelpers.mjs';
 
 /**
@@ -17,19 +17,19 @@ function shuffle(a) {
 }
 
 export default class Trainer {
-  constructor(def) {
-    const network = new JNetwork(def.layers);
+  constructor({ layers, examples, trainConfig }) {
+    const network = new JNetwork(layers);
     Object.assign(this, {
       stopOrdered: false,
-      ...def,
       trainConfig: {
-        costFn: cost,
-        boolFn: bool,
+        learningRate: .1,
+        lossFn: crossEntropy,
+        targetLoss: null,
         regularize: {
           level: 1,
           lambda: 0,
         },
-        ...def.trainConfig
+        ...trainConfig
       },
       network,
       info: {
@@ -37,9 +37,11 @@ export default class Trainer {
       },
       examples: {
         testSet: [],
-        trainSet: []
+        trainSet: [],
+        ...examples
       },
-      lastCost: 1
+      lastCost: 1,
+      ...layers,
     });
   }
 
@@ -91,32 +93,33 @@ export default class Trainer {
       return true;
     });
   }
-  runFullStep() {
-    const { network, examples: { trainSet } } = this;
-    trainSet.forEach(([input, output]) => {
-      network.activate(input);
-      network.calculateSignal(output);
+  runFullStep(trainSet) {
+    const { network } = this;
+    network.clearConnectionSums();
+    trainSet.forEach(([features, labels]) => {
+      network.activate(features);
+      network.calculateSignal(labels);
       network.updateConnectionSums();
     });
   }
 
-  calcGradient() {
+  checkGradient() {
     const {
       network,
       examples: { trainSet },
       trainConfig: {
-        epsilon = 0.0001,
+        epsilon = 0.001,
         regularize,
-        costFn
+        lossFn
       }
     } = this;
     const connections = network.getConnections();
 
     const calcLoss = () => {
       const zs = predict(network, trainSet);
-      return costFn(zs, trainSet, regularize, connections);
+      return lossFn(zs, trainSet, regularize, connections);
     };
-    this.runFullStep();
+    this.runFullStep(trainSet);
 
 
     return connections.map((connection) => {
@@ -126,10 +129,12 @@ export default class Trainer {
       const minusEpsilon = calcLoss();
       connection.w = connection.w + epsilon;
       const { CID, errorSum } = connection;
+      const numericGradient = (plusEpsilon - minusEpsilon) / (2.0 * epsilon);
+      const analyticGradient = errorSum / parseFloat(trainSet.length);
       return {
         CID,
-        bpDelta: errorSum / parseFloat(trainSet.length),
-        epDelta: (plusEpsilon - minusEpsilon) / (2.0 * epsilon)
+        numericGradient,
+        analyticGradient
       }
     });
   }
@@ -137,29 +142,32 @@ export default class Trainer {
     const {
       network,
       examples: { trainSet, testSet },
-      trainConfig: { regularize, costFn, boolFn }
+      trainConfig: {
+        regularize,
+        lossFn
+      }
     } = this;
     const connections = network.getConnections();
+
+    // simple round to 5 function
     const r5 = (fl) => parseFloat(fl.toFixed(5));
+
     const trainPreds = predict(network, trainSet);
-    const trainCost = costFn(trainPreds, trainSet, regularize, connections);
-    this.deltaCost = this.lastCost - trainCost;
-    this.lastCost = trainCost;
-    const trainBool = r5(boolFn(trainPreds, trainSet));
+    const trainLoss = lossFn(trainPreds, trainSet, regularize, connections);
+    this.deltaLoss = this.lastCost - trainLoss;
+    this.lastCost = trainLoss;
     if (testSet.length > 0) {
       const testPreds = predict(network, testSet);
-      const testCost = costFn(testPreds, testSet, regularize, connections);
-      const testBool = r5(boolFn(testPreds, testSet));
-      console.log(`Costs (tr/te): ${trainCost} / ${testCost}   Bool: ${trainBool} / ${testBool}  I: ${i}  dCost: ${this.deltaCost}`);
-      return testBool;
+      const testLoss = lossFn(testPreds, testSet, regularize, connections);
+      console.log(`Loss (tr/te): ${trainLoss} / ${testLoss}   I: ${i}  dCost: ${this.deltaLoss}`);
+      return testLoss;
     } else {
-
-      console.log(`Cost: ${trainCost}  Bool: ${trainBool}  I: ${i}`);
+      console.log(`Loss: ${r5(trainLoss)} Delta: ${this.deltaLoss} I: ${i}`);
+      return trainLoss;
     }
   }
   train(iterations = 1000, seed = 1) {
     const {
-      examples,
       info,
       network,
       examples: {
@@ -169,14 +177,15 @@ export default class Trainer {
       trainConfig: {
         learningRate,
         regularize,
-        batchSize,
-        shuffleAfterEpoch
+        shuffleAfterEpoch,
+        targetLoss
       }
     } = this;
 
+    let batchSize = this.trainConfig.batchSize || trainSet.length;
+
     // TODO REMOVE REMOVE
     console.log(`Training ${trainSet.length} examples in batches of size: ${batchSize} iterations: ${iterations}`);
-    this.quickReport(0);
     let i = 0;
     const dinfo = {
       activation: 0,
@@ -194,45 +203,42 @@ export default class Trainer {
       while (batchIndex < trainSet.length) {
         const batchExamples = trainSet.slice(batchIndex, batchSize + batchIndex);
         network.dropout();
-        batchExamples.forEach(([input, output]) => {
-          // const actStart = Date.now();
-          network.activate(input);
-          // const actEnd = Date.now()
-          //dinfo.activation += (actEnd - actStart);
-          network.calculateSignal(output);
-          network.updateConnectionSums();
-          // dinfo.backProp += Date.now() - actEnd;
-        });
+        this.runFullStep(batchExamples);
         if (i === iterations.length - 1) {
           info.connectionSums = network.getConnectionSums();
         }
-        // const updateStart = Date.now();
         network.updateWeights(learningRate, batchSize, regularize);
         network.restoreDropout();
-        // dinfo.updating += Date.now() - updateStart;
-        // network.clearConnectionSums();
         batchIndex += batchSize;
       }
       i += 1;
-      if (i % 1 === 0) {
+      if (i % 25 === 0) {
         // const reportStart = Date.now();
-        const testBool = this.quickReport(i);
-        if (testBool < .10) {
+        const loss = this.quickReport(i);
+        if (targetLoss && targetLoss > loss) {
+          console.log('Target Loss Reached : ', targetLoss);
           i = iterations;
         }
-        if (!this.stopOrdered && this.deltaCost < 0.0) {
+        if (!this.stopOrdered && this.deltaLoss < 0.0) {
           i = iterations;
           this.stopOrdered = true
-          console.log('HERE IT IS');
         }
-        // dinfo.reporting = Date.now() - reportStart;
-        // console.log(dinfo);
       }
 
     }
     console.log('Training Complete');
-
     return 'DONE';
+  }
+
+  pred() {
+    const {
+      network,
+      examples: {
+        trainSet
+      }
+    } = this;
+
+    return trainSet.map(([feature, label]) => [feature, label, network.activate(feature)]);
   }
 
 }

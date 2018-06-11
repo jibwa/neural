@@ -1,40 +1,42 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-
 const OutVis = ({ z, w }, iterator) => (
   <td key={`out${iterator}`}>
     w:{w}
   </td>
 );
+
 OutVis.propTypes = {
   z: PropTypes.number.isRequired,
   w: PropTypes.number.isRequired
 };
 
-const Neuron = ({ z, outs, s }) => (
-  <table>
-    <tr>
-      <td>
-        i:{z}   s:{s}
-      </td>
-    </tr>
-    <tr>
-      {outs.map(OutVis)}
-    </tr>
-
-  </table>
-);
+const Neuron = ({ neuron }) => {
+  const { z, s } = neuron;
+  const { outs } = neuron.conns();
+  return (
+    <table>
+      <tr>
+        <td>
+          i:{z}   s:{s}
+        </td>
+      </tr>
+      <tr>
+        {outs.map(OutVis)}
+      </tr>
+    </table>
+  );
+};
 Neuron.propTypes = {
   z: PropTypes.number.isRequired,
-  outs: PropTypes.arrayOf(PropTypes.shape).isRequired,
   s: PropTypes.number.isRequired
 };
 
 const Layer = ({ neurons }) => (
   <div>
     {neurons.map((neuron, iterator) => (
-      <Neuron key={`n${iterator}`} {...neuron} />
+      <Neuron key={`n${iterator}`} neuron={neuron} />
     ))}
   </div>
 );

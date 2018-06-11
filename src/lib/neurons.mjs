@@ -30,7 +30,7 @@ class JNeuron {
     return this.cm.getNodeConnections(this.NID);
   }
 
-  project(to, weightMax, layerInt) {
+  project(to, weightMax = .1, layerInt) {
     const from = this;
     const w = JNeuron.rand() * weightMax;
     const errorSum = 0;
@@ -73,7 +73,7 @@ class JNeuron {
       }
     }
   }
-  updateWeights(learningRate, batchSize, { level, lambda }) {
+  updateWeights(learningRate, batchSize, { level, lambda } = {}) {
     const { outs } = this.conns();
     const pBSize = parseFloat(batchSize);
     outs.forEach(connection => {

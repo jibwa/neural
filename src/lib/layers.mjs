@@ -169,7 +169,7 @@ export class JInputLayer extends JLayer {
     }
     let dropoutP = 1.0;
     if (testing === true) {
-      dropoutP = dropout;
+      dropoutP = dropout || 1.0;
     }
     biasNeurons.forEach(neuron => neuron.activate());
     inputNeurons.forEach((neuron, index) => {

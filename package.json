@@ -4,7 +4,7 @@
   "description": "Neural Network Trainer",
   "main": "index.js",
   "scripts": {
-    "start": "node --experimental-modules index.mjs",
+    "start": "nodemon -e mjs,js,jsx,json,less --experimental-modules index.mjs",
     "lint": "node ./node_modules/eslint/bin/eslint.js --ext=mjs,js,jsx src/** index.mjs"
   },
   "author": "Joshua White",
@@ -23,6 +23,7 @@
     "eslint-config-airbnb": "^16.1.0",
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-jsx-a11y": "^6.0.3",
-    "eslint-plugin-react": "^7.5.1"
+    "eslint-plugin-react": "^7.5.1",
+    "nodemon": "^1.17.1"
   }
 }

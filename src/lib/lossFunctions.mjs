@@ -1,23 +1,32 @@
 const netAverage = (fn, negate) =>
   (predictions, dataSet) => {
     const n = negate ? -1 : 1;
-    return n * dataSet.reduce((acc, [input, output], index) =>
-      acc + fn(output, predictions[index])
+    return n * dataSet.reduce((acc, [feature, label], index) =>
+      acc + fn(label, predictions[index])
     , 0.0) / parseFloat(dataSet.length);
   }
 
-const simpleCost = netAverage((yArr, zArr) =>{
+const simpleCrossEntropy = netAverage((yArr, zArr) => {
   const y = yArr[0];
-  const z = zArr[0];
-  return -y * Math.log(z) - (1-y) * Math.log(1-z);
+  const p = zArr[0];
+  return -y * Math.log(p) + (1-y) * Math.log(1-p);
 });
 
-const cost = (predictions, dataset, { level, lambda }, weights) => {
+const meanSquared = netAverage((y, p) => {
+  return Math.pow(p - y, 2);
+});
 
-  const preReg = simpleCost(predictions, dataset)
+const crossEntropy = (predictions, dataset, { level, lambda }, weights) => {
+
+  const preReg = simpleCrossEntropy(predictions, dataset)
+
+  // no regularization applied so simple cost will do
   if (!(lambda > 0)) {
     return preReg;
   }
+  console.log('SHOULD NEVER GET HERE');
+
+  // apply regularization to cost
   const pLen = parseFloat(predictions.length);
   let weightSqSum;
   let regC;
@@ -65,10 +74,8 @@ const softmaxBool = netAverage((yArray, zArray) => {
   const indexOfMaxValue = zArray.reduce((iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 0);
   return index === indexOfMaxValue ? 0 : 1;
 })
-const bool = netAverage((y, z) =>
-  Math.abs(y - Math.round(z)));
 
-const meanSquare = netAverage((y, z) =>
-  Math.pow(y - z, 2));
 
-export { cost, bool, meanSquare, softmaxXECost, softmaxBool };
+const meanAbsolute = netAverage((y, p) =>
+  Math.abs(y - p));
+export { crossEntropy,  meanSquared, softmaxXECost, softmaxBool };
