@@ -1,4 +1,0 @@
-const squareReduceMean = {
-
-}
-export { squareReduceMean };

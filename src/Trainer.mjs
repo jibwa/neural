@@ -7,27 +7,30 @@ import { predict } from './lib/netHelpers.mjs';
  * @param {Array} a items An array containing the items.
  */
 function shuffle(a) {
-    var j, x, i;
-    for (i = a.length - 1; i > 0; i--) {
-        j = Math.floor(Math.random() * (i + 1));
-        x = a[i];
-        a[i] = a[j];
-        a[j] = x;
-    }
+  let j;
+  let x;
+  let i;
+  for (i = a.length - 1; i > 0; i -= 1) {
+    j = Math.floor(Math.random() * (i + 1));
+    x = a[i];
+    a[i] = a[j];
+    a[j] = x;
+  }
 }
 
 export default class Trainer {
   constructor({ layers, examples, trainConfig }) {
     const network = new JNetwork(layers);
     Object.assign(this, {
+      totalIterations: 0,
       stopOrdered: false,
       trainConfig: {
-        learningRate: .1,
+        learningRate: 0.1,
         lossFn: crossEntropy,
         targetLoss: null,
         regularize: {
           level: 1,
-          lambda: 0,
+          lambda: 0
         },
         ...trainConfig
       },
@@ -41,7 +44,7 @@ export default class Trainer {
         ...examples
       },
       lastCost: 1,
-      ...layers,
+      ...layers
     });
   }
 
@@ -56,7 +59,7 @@ export default class Trainer {
       }
     } = this;
 
-    return dataFn().then(results => {
+    return dataFn().then((results) => {
       if (examples.trainSet.length === 0) {
         examples.trainSet = results;
       } else {
@@ -69,19 +72,18 @@ export default class Trainer {
           let testExample;
           if (randomizeSplit) {
             const trainIndex = Math.floor(Math.random() * parseFloat(trainSet.length));
-            testExample = trainSet.splice(trainIndex,1)[0];
+            [testExample] = trainSet.splice(trainIndex, 1);
           } else {
             testExample = trainSet.pop();
           }
           testSet.push(testExample);
         }
-      }
-      else {
+      } else {
         while (trainTestRatio < ratio) {
           let testExample;
           if (randomizeSplit) {
             const trainIndex = Math.floor(Math.random() * parseFloat(trainSet.length));
-            testExample = trainSet.splice(trainIndex,1)[0];
+            [testExample] = trainSet.splice(trainIndex, 1);
           } else {
             testExample = trainSet.pop();
           }
@@ -123,11 +125,11 @@ export default class Trainer {
 
 
     return connections.map((connection) => {
-      connection.w = connection.w + epsilon;
+      connection.w += epsilon;
       const plusEpsilon = calcLoss();
-      connection.w = connection.w - (2 * epsilon);
+      connection.w -= (2 * epsilon);
       const minusEpsilon = calcLoss();
-      connection.w = connection.w + epsilon;
+      connection.w += epsilon;
       const { CID, errorSum } = connection;
       const numericGradient = (plusEpsilon - minusEpsilon) / (2.0 * epsilon);
       const analyticGradient = errorSum / parseFloat(trainSet.length);
@@ -135,7 +137,7 @@ export default class Trainer {
         CID,
         numericGradient,
         analyticGradient
-      }
+      };
     });
   }
   quickReport(i) {
@@ -150,7 +152,7 @@ export default class Trainer {
     const connections = network.getConnections();
 
     // simple round to 5 function
-    const r5 = (fl) => parseFloat(fl.toFixed(5));
+    const r5 = fl => parseFloat(fl.toFixed(5));
 
     const trainPreds = predict(network, trainSet);
     const trainLoss = lossFn(trainPreds, trainSet, regularize, connections);
@@ -161,18 +163,16 @@ export default class Trainer {
       const testLoss = lossFn(testPreds, testSet, regularize, connections);
       console.log(`Loss (tr/te): ${trainLoss} / ${testLoss}   I: ${i}  dCost: ${this.deltaLoss}`);
       return testLoss;
-    } else {
-      console.log(`Loss: ${r5(trainLoss)} Delta: ${this.deltaLoss} I: ${i}`);
-      return trainLoss;
     }
+    console.log(`Loss: ${r5(trainLoss)} Delta: ${this.deltaLoss} I: ${i}`);
+    return trainLoss;
   }
-  train(iterations = 1000, seed = 1) {
+  train(iterations = 1000) {
     const {
       info,
       network,
       examples: {
-        trainSet,
-        testSet
+        trainSet
       },
       trainConfig: {
         learningRate,
@@ -182,18 +182,11 @@ export default class Trainer {
       }
     } = this;
 
-    let batchSize = this.trainConfig.batchSize || trainSet.length;
+    const batchSize = this.trainConfig.batchSize || trainSet.length;
 
     // TODO REMOVE REMOVE
     console.log(`Training ${trainSet.length} examples in batches of size: ${batchSize} iterations: ${iterations}`);
     let i = 0;
-    const dinfo = {
-      activation: 0,
-      backProp: 0,
-      reporting: 0,
-      updating: 0,
-      total: 0
-    }
     // const beginning = Date.now();
     while (i < iterations) {
       if (shuffleAfterEpoch === true) {
@@ -212,6 +205,7 @@ export default class Trainer {
         batchIndex += batchSize;
       }
       i += 1;
+      this.totalIterations += 1
       if (i % 25 === 0) {
         // const reportStart = Date.now();
         const loss = this.quickReport(i);
@@ -221,12 +215,11 @@ export default class Trainer {
         }
         if (!this.stopOrdered && this.deltaLoss < 0.0) {
           i = iterations;
-          this.stopOrdered = true
+          this.stopOrdered = true;
         }
       }
-
     }
-    console.log('Training Complete');
+    console.log('TRAINING COMPLETE');
     return 'DONE';
   }
 
@@ -237,10 +230,6 @@ export default class Trainer {
         trainSet
       }
     } = this;
-
     return trainSet.map(([feature, label]) => [feature, label, network.activate(feature)]);
   }
-
 }
-
-

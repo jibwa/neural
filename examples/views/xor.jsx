@@ -47,7 +47,10 @@ Layer.propTypes = {
 const Visualize = ({
   network: {
     layers: { input, hidden, output }
-  }
+  },
+  trainingSet,
+  preds,
+  totalIterations
 }) => (
   <html lang="en">
     <head>
@@ -55,6 +58,35 @@ const Visualize = ({
       <link rel="stylesheet" href="/style/style.css" />
     </head>
     <body>
+      <h2>Network Output</h2>
+      <h4>Total Iterations: {totalIterations}</h4>
+      <h3>Preds</h3>
+      <table>
+        <tr>
+          <th>
+            Input
+          </th>
+          <th>
+            Expected Output
+          </th>
+          <th>
+            Neural Prediction
+          </th>
+        </tr>
+        {preds.map(([feature, label, y]) => (
+          <tr>
+            <td>
+              {feature}
+            </td>
+            <td>
+              {label}
+            </td>
+            <td>
+              {y}
+            </td>
+          </tr>
+        ))}
+      </table>
       <h3>Input</h3>
       <Layer neurons={input.neurons} />
       <h3>Hidden</h3>

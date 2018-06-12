@@ -1,8 +1,8 @@
 const differenceArrayFromSets = (origin, dropouts) => {
   const result = new Set(origin.values());
-  dropouts.forEach(c => result.delete(c))
+  dropouts.forEach(c => result.delete(c));
   return Array.from(result);
-}
+};
 export class ConnectionManager {
   constructor() {
     this.numConnections = 0;
@@ -15,15 +15,28 @@ export class ConnectionManager {
     // connections grouped by layer
     this.layered = {};
   }
-  register({ to, from, w, errorSum, layerInt }) {
-    const { ins, outs, conns, layered } = this;
+  register({
+    to, from, w, errorSum, layerInt
+  }) {
+    const {
+      ins,
+      outs,
+      conns,
+      layered
+    } = this;
     const CID = this.numConnections;
-    const registeredConnection = { to, from , w, errorSum, CID };
+    const registeredConnection = {
+      to,
+      from,
+      w,
+      errorSum,
+      CID
+    };
     if (!outs[from.NID]) {
       outs[from.NID] = new Set();
     }
     if (!ins[to.NID]) {
-       ins[to.NID] = new Set();
+      ins[to.NID] = new Set();
     }
     if (!layered[layerInt]) {
       layered[layerInt] = new Set();
@@ -35,15 +48,15 @@ export class ConnectionManager {
     this.numConnections += 1;
   }
 
-  allConnections(ordered=false) {
+  allConnections(ordered = false) {
     const conns = Object.values(this.conns);
     if (ordered) {
-      conns.sort((a, b) => a < b ? -1 : 1)
+      conns.sort((a, b) => a < b ? -1 : 1);
     }
     return conns;
   }
 
-  layeredConnectionWeights(fn) {
+  layeredConnectionWeights() {
     return Object.values(this.layered).map(l =>
       Array.from(l).map(c => c.w));
   }
@@ -57,20 +70,19 @@ export class ConnectionManager {
       if (invert === true) {
         scaler = 1.0 / dropout;
       }
-      const newSet = new Set();
-      this.layered[layerInt].forEach(c => c.w = c.w * scaler);
+      this.layered[layerInt].forEach(c => c.w *= scaler);
     }
   }
 
   assembleNodeConnections(NID) {
-    const { ins, outs, dropped } = this
+    const { ins, outs, dropped } = this;
     const inSet = ins[NID] || new Set();
     const outSet = outs[NID] || new Set();
     if (!dropped[NID]) {
       return {
         ins: Array.from(inSet || []),
         outs: Array.from(outSet || [])
-      }
+      };
     }
     return {
       ins: differenceArrayFromSets(inSet, dropped[NID]),
@@ -80,13 +92,13 @@ export class ConnectionManager {
   getNodeConnections(NID) {
     const { fastHash } = this;
     if (!fastHash[NID]) {
-      fastHash[NID] = this.assembleNodeConnections(NID)
+      fastHash[NID] = this.assembleNodeConnections(NID);
     }
-    return fastHash[NID]
+    return fastHash[NID];
   }
 
   dropoutConnection(conn) {
-    const { conns, dropped, fastHash } = this;
+    const { dropped, fastHash } = this;
     const { to, from } = conn;
     if (!dropped[to.NID]) {
       dropped[to.NID] = new Set();
@@ -102,7 +114,6 @@ export class ConnectionManager {
     fastHash[from.NID] = undefined;
   }
   restoreConnection(conn) {
-    const { conns, dropped } = this;
     const { to, from } = conn;
 
     this.dropped[to.NID].delete(conn);
@@ -110,7 +121,6 @@ export class ConnectionManager {
 
     this.fastHash[to.NID] = undefined;
     this.fastHash[from.NID] = undefined;
-
   }
   dropoutNeuron(NID) {
     const { ins, outs, dropoutConnection } = this;

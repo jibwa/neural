@@ -1,7 +1,7 @@
 import express from 'express';
 import expressLess from 'express-less';
 import erv from 'express-react-views';
-import registerExamples from './examples/';
+import registerExamples from './examples/index.mjs';
 
 const app = express();
 if (process.version !== 'v9.3.0') {

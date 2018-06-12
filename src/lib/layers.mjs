@@ -13,18 +13,17 @@ class JLayer {
     const {
       numNeurons,
       activationFunction = sigmoid,
-      weightMax = 1.0,
       skipBias = false,
-      dropout = 1.0,
-      wBound,
+      wBound
     } = layerDef;
     this.connectedTo = [];
 
     let bias;
     if (!skipBias) {
-      bias = new JBiasNeuron({ activationFunction, wBound , cm });
+      bias = new JBiasNeuron({ activationFunction, wBound, cm });
     }
-    const neurons = Array(numNeurons).fill().map(() => new NeuronClass({ activationFunction, cm, wBound }));
+    const neurons = Array(numNeurons).fill().map(() =>
+      new NeuronClass({ activationFunction, cm, wBound }));
     Object.assign(this, {
       neurons: bias ? [bias, ...neurons] : neurons,
       connectedTo: [],
@@ -41,7 +40,7 @@ class JLayer {
 
   // set up the neuron relationships
   project(to) {
-    const {layerInt, layerDef: { weightMax } } = this;
+    const { layerInt, layerDef: { weightMax } } = this;
     this.connectedTo.push(to);
 
     this.neurons.forEach((fromNeuron) => {
@@ -56,7 +55,7 @@ class JLayer {
     return this.neurons.map(neuron => neuron.calculateSignal());
   }
   updateConnectionSums() {
-    return this.neurons.map(neuron => neuron.updateConnectionSums())
+    return this.neurons.map(neuron => neuron.updateConnectionSums());
   }
   toJSON() {
     return {
@@ -64,19 +63,12 @@ class JLayer {
       neurons: this.neurons.map(toJSON)
     };
   }
-  getWeightArrays() {
-    return this.neurons.map(neuron => neuron.getWeightArray());
-  }
-  restoreWeights(weights) {
-    return this.neurons.forEach((neuron, i) => neuron.restoreWeights(weights[i]));
-  }
-
   drop(modifyNeurons) {
     const { layerDef: { dropout }, dropouts, neurons } = this;
     if (!dropout) {
       return;
     }
-    const newNeurons = this.neurons.reduce((acc, neuron) => {
+    const newNeurons = neurons.reduce((acc, neuron) => {
       if (Math.random() > dropout) {
         // bias nodes wont let themselves be dropped and report false
         const dropped = neuron.drop();
@@ -97,9 +89,7 @@ class JLayer {
     if (!dropout) {
       return;
     }
-    this.dropouts.forEach(neuron => {
-      neuron.restoreDrop();
-    })
+    this.dropouts.forEach(neuron => neuron.restoreDrop());
     if (modifyNeurons) {
       neurons.push(...dropouts);
     }
@@ -107,7 +97,7 @@ class JLayer {
   }
 }
 export class JOutputLayer extends JLayer {
-  constructor(layerDef, cm, layerInt, NeuronType=JOutputNeuron) {
+  constructor(layerDef, cm, layerInt, NeuronType = JOutputNeuron) {
     super(layerDef, NeuronType, cm);
   }
 
@@ -120,26 +110,26 @@ export class JOutputLayer extends JLayer {
 }
 export class JSoftmaxXEOutputLayer extends JOutputLayer {
   constructor(layerDef, cm, layerInt) {
-    super({
-      ...layerDef,
-      activationFunction: softmax,
-      skipBias: true
-    },
+    super(
+      {
+        ...layerDef,
+        activationFunction: softmax,
+        skipBias: true
+      },
       cm,
       layerInt,
-      JSoftmaxXENeuron,
+      JSoftmaxXENeuron
     );
   }
   activate() {
     const ts = this.neurons.map(n => n.activate());
     const sum = ts.reduce((acc, t) => acc + t);
-    const zs = this.neurons.map(n => {
-      n.z = n.z / sum
+    const zs = this.neurons.map((n) => {
+      n.z /= sum;
       return n.z;
     });
     return zs;
   }
-
 }
 
 export class JHiddenLayer extends JLayer {
@@ -151,7 +141,7 @@ export class JHiddenLayer extends JLayer {
   }
 
   restoreDrop() {
-    super.restoreDrop(true)
+    super.restoreDrop(true);
   }
 }
 
@@ -172,8 +162,7 @@ export class JInputLayer extends JLayer {
       dropoutP = dropout || 1.0;
     }
     biasNeurons.forEach(neuron => neuron.activate());
-    inputNeurons.forEach((neuron, index) => {
-      neuron.activate(inputs[index] * dropoutP)
-    });
+    inputNeurons.forEach((neuron, index) =>
+      neuron.activate(inputs[index] * dropoutP));
   }
 }

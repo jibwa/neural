@@ -1,4 +1,4 @@
-import { JInputLayer, JOutputLayer, JSoftmaxXEOutputLayer,  JHiddenLayer } from './layers.mjs';
+import { JInputLayer, JOutputLayer, JSoftmaxXEOutputLayer, JHiddenLayer } from './layers.mjs';
 import { ConnectionManager } from './connectionManager.mjs';
 
 export class JNetwork {
@@ -6,9 +6,9 @@ export class JNetwork {
     const cm = new ConnectionManager();
     const input = new JInputLayer(layerDef.input, cm, 0);
     let layerInt = 1;
-    const hidden = layerDef.hidden.map(layer => {
-      let hl = new JHiddenLayer(layer, cm, layerInt)
-      layerInt += 1
+    const hidden = layerDef.hidden.map((layer) => {
+      const hl = new JHiddenLayer(layer, cm, layerInt);
+      layerInt += 1;
       return hl;
     });
     const OutputLayerClass = layerDef.output.softmaxXE === true ?
@@ -28,17 +28,16 @@ export class JNetwork {
 
   dropout() {
     const { input, hidden } = this.layers;
-    [input, ...hidden].forEach(layer => layer.drop())
+    [input, ...hidden].forEach(layer => layer.drop());
   }
   restoreDropout() {
     const { input, hidden } = this.layers;
-    [input, ...hidden].forEach(layer => layer.restoreDrop())
+    [input, ...hidden].forEach(layer => layer.restoreDrop());
   }
   scaleDropoutPForPrediction(invert) {
     const { cm, layers: { input, hidden } } = this;
-    [input, ...hidden].forEach(({layerInt, layerDef: { dropout } }) =>
-      cm.scaleWeightsForDropout(layerInt, dropout, invert) );
-
+    [input, ...hidden].forEach(({ layerInt, layerDef: { dropout } }) =>
+      cm.scaleWeightsForDropout(layerInt, dropout, invert));
   }
 
   activate(inputs, testing) {
@@ -73,17 +72,14 @@ export class JNetwork {
 
   updateWeights(learningRate, batchSize, regularize) {
     // TODO - BIASES USE A DIFFERENT FORMULA
-    this.getAllNeurons().forEach(neuron => neuron.updateWeights(learningRate, batchSize, regularize));
-    //this.getAllConnections().forEach((connection) => {
-    //  connection.w += ((1 / batchSize) * connection.errorSum);
-    //  connection.errorSum = 0;
-    //});
+    this.getAllNeurons().forEach(neuron =>
+      neuron.updateWeights(learningRate, batchSize, regularize));
   }
 
   getAllNeurons() {
     const allNeurons = [];
-    this.getFlatLayers().forEach(layer => {
-      allNeurons.push(...layer.neurons)
+    this.getFlatLayers().forEach((layer) => {
+      allNeurons.push(...layer.neurons);
     });
     return allNeurons;
   }

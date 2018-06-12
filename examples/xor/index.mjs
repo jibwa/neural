@@ -10,8 +10,10 @@ const getTrainer = () => {
 }
 
 const renderIndex = (req, res) => {
-  const { network, trainingSet } = getTrainer();
-  res.render('xor', { network, trainingSet });
+  const trainer = getTrainer();
+  const preds = trainer.pred();
+  const { network, trainingSet, totalIterations } = trainer;
+  res.render('xor', { network, trainingSet, preds, totalIterations });
 };
 
 const getIterations = (req) => {
@@ -38,9 +40,9 @@ const register = (app) => {
     renderIndex(req, res);
   });
 
-  app.get(`#{root}/reset`, (req) => {
+  app.get(`${root}/reset`, (req, res) => {
     _trainer = new XORTrainer();
-    res.ok();
+    res.json({reset: true});
   });
 }
 export default register;
